@@ -121,7 +121,7 @@ const HomePage: React.FC = () => {
                                      {step.icon}
                                  </div>
                                  <h3 className="mt-6 text-lg font-medium text-dark-gray">{step.title}</h3>
-                                 <p className="mt-2 text-base text-gray-500">{step.description}</p>
+                                 <p className="mt-2 text-base text-black font-light">{step.description}</p>
                              </div>
                         ))}
                     </div>

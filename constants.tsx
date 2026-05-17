@@ -1,5 +1,4 @@
 
-import React from 'react';
 import { Product } from './types';
 
 // NOTE: Make.com webhook URL for invoice generation.
@@ -169,6 +168,7 @@ export const NAV_LINKS = [
 
 export const FOOTER_LEGAL_LINKS = [
     { name: 'Obchodní podmínky', path: '/obchodni-podminky' },
+    { name: 'Odstoupení od smlouvy', path: '/odstoupeni-od-smlouvy' },
     { name: 'Ochrana osobních údajů', path: '/ochrana-udaju' },
 ];
 

@@ -67,6 +67,22 @@ const CheckoutPage: React.FC = () => {
     const [balikovnaPoint, setBalikovnaPoint] = useState<any | null>(null);
     const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
 
+    // --- PPL SCRIPT LOADING ---
+    React.useEffect(() => {
+        const scriptId = 'ppl-map-script';
+        if (!document.getElementById(scriptId)) {
+            const script = document.createElement('script');
+            script.id = scriptId;
+            script.src = 'https://www.ppl.cz/sources/map/main.js';
+            script.async = true;
+            document.body.appendChild(script);
+            
+            script.onerror = () => {
+                console.error("PPL script failed to load");
+            };
+        }
+    }, []);
+
     const [couponCode, setCouponCode] = useState('');
     const [appliedCoupon, setAppliedCoupon] = useState<{code: string, rate: number} | null>(null);
     const [couponMessage, setCouponMessage] = useState<{text: string, type: 'success' | 'error'} | null>(null);
@@ -489,7 +505,7 @@ const CheckoutPage: React.FC = () => {
                                     </div>
                                     <div className="flex-grow">
                                         <h3 className="font-black text-gray-900 leading-tight">{item.product.name}</h3>
-                                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">
+                                        <p className="text-xs font-normal text-black uppercase tracking-widest mt-1">
                                             {item.variant?.name} • {item.quantity} ks
                                         </p>
                                         {item.customText && Object.values(item.customText).some(v => v) && (
@@ -501,8 +517,8 @@ const CheckoutPage: React.FC = () => {
                                         )}
                                     </div>
                                     <div className="text-right flex flex-col justify-between">
-                                        <span className="font-black text-brand-purple">{formatPrice(item.price * item.quantity)} Kč</span>
-                                        <Link to={`/produkt/${item.product.id}`} className="text-[10px] font-bold text-gray-400 hover:text-brand-purple uppercase tracking-widest mt-2 underline">Upravit</Link>
+                                        <span className="font-black text-brand-pink">{formatPrice(item.price * item.quantity)} Kč</span>
+                                        <Link to={`/produkt/${item.product.id}`} className="text-[10px] font-normal text-black hover:text-brand-purple uppercase tracking-widest mt-2 underline">Upravit</Link>
                                     </div>
                                 </div>
                             ))}
@@ -543,36 +559,34 @@ const CheckoutPage: React.FC = () => {
                     <section>
                         <h2 className="text-xl font-medium text-dark-gray mb-6 border-b pb-2">2. Doprava</h2>
                         <div className="space-y-4">
-                            <p className="text-xs font-bold text-gray-400 uppercase">PPL</p>
+                            <p className="text-xs font-normal text-black uppercase">PPL</p>
                             <RadioCard name="shipping" value="ppl_parcelshop" title="PPL ParcelShop / Parcelbox" price={shippingCosts['ppl_parcelshop'] === 0 ? "Zdarma" : `${shippingCosts['ppl_parcelshop']} Kč`} checked={shippingMethod === 'ppl_parcelshop'} onChange={(e: any) => setShippingMethod(e.target.value)} />
-                            {shippingMethod === 'ppl_parcelshop' && (
-                                <div className="ml-4 md:ml-8 mt-2 space-y-3">
-                                    <div className="bg-white rounded-xl border-2 border-brand-purple overflow-hidden shadow-lg min-h-[500px]">
-                                        <div id="ppl-parcelshop-map" data-language="cs" style={{ height: '500px' }}></div>
-                                    </div>
-                                    <div className="p-3 bg-brand-purple/10 border border-brand-purple/20 rounded-lg">
-                                        {pplPoint ? (
-                                            <div className="flex items-center gap-3">
-                                                <div className="bg-brand-purple text-white p-2 rounded-full">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                                    </svg>
-                                                </div>
-                                                <div>
-                                                    <p className="font-black text-gray-900 leading-none">{pplPoint.name}</p>
-                                                    <p className="text-xs text-gray-500 mt-1">{pplPoint.street}, {pplPoint.city}</p>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <p className="text-brand-purple font-bold text-sm">Vyberte výdejní místo na mapě výše ↑</p>
-                                        )}
-                                    </div>
-                                    {formErrors.pplPoint && <p className="text-red-500 text-sm mt-1">{formErrors.pplPoint}</p>}
+                            <div className={`${shippingMethod === 'ppl_parcelshop' ? 'block' : 'hidden'} ml-4 md:ml-8 mt-2 space-y-3`}>
+                                <div className="bg-white rounded-xl border-2 border-brand-purple overflow-hidden shadow-lg min-h-[500px]">
+                                    <div id="ppl-parcelshop-map" data-language="cs" style={{ height: '500px' }}></div>
                                 </div>
-                            )}
+                                <div className="p-3 bg-brand-purple/10 border border-brand-purple/20 rounded-lg">
+                                    {pplPoint ? (
+                                        <div className="flex items-center gap-3">
+                                            <div className="bg-brand-purple text-white p-2 rounded-full">
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                </svg>
+                                            </div>
+                                            <div>
+                                                <p className="font-black text-gray-900 leading-none">{pplPoint.name}</p>
+                                                <p className="text-xs text-gray-500 mt-1">{pplPoint.street}, {pplPoint.city}</p>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <p className="text-brand-purple font-bold text-sm">Vyberte výdejní místo na mapě výše ↑</p>
+                                    )}
+                                </div>
+                                {formErrors.pplPoint && <p className="text-red-500 text-sm mt-1">{formErrors.pplPoint}</p>}
+                            </div>
                             <RadioCard name="shipping" value="ppl_address" title="PPL Doručení na adresu" price={shippingCosts['ppl_address'] === 0 ? "Zdarma" : `${shippingCosts['ppl_address']} Kč`} checked={shippingMethod === 'ppl_address'} onChange={(e: any) => setShippingMethod(e.target.value)} />
 
-                            <p className="text-xs font-bold text-gray-400 uppercase pt-4">Zásilkovna</p>
+                            <p className="text-xs font-normal text-black uppercase pt-4">Zásilkovna</p>
                             <RadioCard name="shipping" value="zasilkovna_point" title="Na výdejní místo (Z-Point / Z-Box)" price={shippingCosts['zasilkovna_point'] === 0 ? "Zdarma" : `${shippingCosts['zasilkovna_point']} Kč`} checked={shippingMethod === 'zasilkovna_point'} onChange={(e: any) => setShippingMethod(e.target.value)} />
                             {shippingMethod === 'zasilkovna_point' && (
                                 <div className="ml-8 mt-2">
@@ -584,7 +598,7 @@ const CheckoutPage: React.FC = () => {
                             )}
                             <RadioCard name="shipping" value="zasilkovna_address" title="Zásilkovna Doručení na adresu" price={shippingCosts['zasilkovna_address'] === 0 ? "Zdarma" : `${shippingCosts['zasilkovna_address']} Kč`} checked={shippingMethod === 'zasilkovna_address'} onChange={(e: any) => setShippingMethod(e.target.value)} />
 
-                            <p className="text-xs font-bold text-gray-400 uppercase pt-4">Česká pošta</p>
+                            <p className="text-xs font-normal text-black uppercase pt-4">Česká pošta</p>
                             <RadioCard name="shipping" value="balikovna_point" title="Balíkovna - Výdejní místo" price={shippingCosts['balikovna_point'] === 0 ? "Zdarma" : `${shippingCosts['balikovna_point']} Kč`} checked={shippingMethod === 'balikovna_point'} onChange={(e: any) => setShippingMethod(e.target.value)} />
                             {shippingMethod === 'balikovna_point' && (
                                 <div className="ml-8 mt-2">
@@ -595,7 +609,7 @@ const CheckoutPage: React.FC = () => {
                                 </div>
                             )}
 
-                            <p className="text-xs font-bold text-gray-400 uppercase pt-4">Ostatní</p>
+                            <p className="text-xs font-normal text-black uppercase pt-4">Ostatní</p>
                             <RadioCard name="shipping" value="osobne" title="Osobní odběr - Liberec nebo Turnov (Dle domluvy)" price="Zdarma" checked={shippingMethod === 'osobne'} onChange={(e: any) => setShippingMethod(e.target.value)} />
                         </div>
                     </section>
@@ -604,15 +618,15 @@ const CheckoutPage: React.FC = () => {
                     <div className="bg-gray-50 rounded-lg p-6 border shadow-sm sticky top-24">
                         <h2 className="text-lg font-bold mb-4">Souhrn</h2>
                         <div className="border-t pt-4 space-y-2 text-sm">
-                            <div className="flex justify-between"><span>Mezisoučet</span><span>{formatPrice(subtotal)} Kč</span></div>
+                            <div className="flex justify-between"><span>Mezisoučet</span><span className="font-bold text-brand-pink">{formatPrice(subtotal)} Kč</span></div>
                             {discountAmount > 0 && (
                                 <div className="flex justify-between text-green-600 font-medium">
                                     <span>Sleva ({appliedCoupon?.code})</span>
                                     <span>-{formatPrice(discountAmount)} Kč</span>
                                 </div>
                             )}
-                            <div className="flex justify-between"><span>Doprava</span><span>{shippingMethod ? `${shippingCost} Kč` : '–'}</span></div>
-                            <div className="border-t pt-4 flex justify-between text-xl font-bold"><span>Celkem</span><span>{formatPrice(total)} Kč</span></div>
+                            <div className="flex justify-between"><span>Doprava</span><span className="font-bold text-brand-pink">{shippingMethod ? `${shippingCost} Kč` : '–'}</span></div>
+                            <div className="border-t pt-4 flex justify-between text-xl font-bold"><span>Celkem</span><span className="font-black text-brand-pink">{formatPrice(total)} Kč</span></div>
                         </div>
 
                         <div className="mt-8">

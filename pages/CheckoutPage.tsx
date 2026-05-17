@@ -65,6 +65,7 @@ const CheckoutPage: React.FC = () => {
     const [packetaPoint, setPacketaPoint] = useState<any | null>(null);
     const [pplPoint, setPplPoint] = useState<any | null>(null);
     const [balikovnaPoint, setBalikovnaPoint] = useState<any | null>(null);
+    const [isPplModalOpen, setIsPplModalOpen] = useState(false);
     const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
 
     // --- PPL SCRIPT LOADING ---
@@ -96,6 +97,7 @@ const CheckoutPage: React.FC = () => {
                 console.log("Vybraný PPL ParcelShop:", event.detail);
                 setPplPoint(event.detail);
                 setFormErrors(prev => ({...prev, pplPoint: ''}));
+                setIsPplModalOpen(false);
             }
         };
 
@@ -561,29 +563,60 @@ const CheckoutPage: React.FC = () => {
                         <div className="space-y-4">
                             <p className="text-xs font-normal text-black uppercase">PPL</p>
                             <RadioCard name="shipping" value="ppl_parcelshop" title="PPL ParcelShop / Parcelbox" price={shippingCosts['ppl_parcelshop'] === 0 ? "Zdarma" : `${shippingCosts['ppl_parcelshop']} Kč`} checked={shippingMethod === 'ppl_parcelshop'} onChange={(e: any) => setShippingMethod(e.target.value)} />
-                            <div className={`${shippingMethod === 'ppl_parcelshop' ? 'block' : 'hidden'} ml-4 md:ml-8 mt-2 space-y-3`}>
-                                <div className="bg-white rounded-xl border-2 border-brand-purple overflow-hidden shadow-lg min-h-[500px]">
-                                    <div id="ppl-parcelshop-map" data-language="cs" style={{ height: '500px' }}></div>
-                                </div>
-                                <div className="p-3 bg-brand-purple/10 border border-brand-purple/20 rounded-lg">
-                                    {pplPoint ? (
-                                        <div className="flex items-center gap-3">
-                                            <div className="bg-brand-purple text-white p-2 rounded-full">
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                                </svg>
-                                            </div>
-                                            <div>
-                                                <p className="font-black text-gray-900 leading-none">{pplPoint.name}</p>
-                                                <p className="text-xs text-gray-500 mt-1">{pplPoint.street}, {pplPoint.city}</p>
+                            {shippingMethod === 'ppl_parcelshop' && (
+                                <div className="ml-4 md:ml-8 mt-2 space-y-3">
+                                    <button 
+                                        type="button" 
+                                        onClick={() => setIsPplModalOpen(true)} 
+                                        className="text-brand-purple hover:underline font-bold text-left block"
+                                    >
+                                        {pplPoint ? `Vybráno: ${pplPoint.name}` : 'Klikněte pro výběr výdejního místa PPL'}
+                                    </button>
+                                    
+                                    {pplPoint && (
+                                        <div className="p-3 bg-brand-purple/10 border border-brand-purple/20 rounded-lg max-w-sm">
+                                            <div className="flex items-center gap-3">
+                                                <div className="bg-brand-purple text-white p-2 rounded-full flex-shrink-0">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                    </svg>
+                                                </div>
+                                                <div>
+                                                    <p className="font-black text-gray-900 leading-none">{pplPoint.name}</p>
+                                                    <p className="text-xs text-gray-500 mt-1">{pplPoint.street}, {pplPoint.city}</p>
+                                                </div>
                                             </div>
                                         </div>
-                                    ) : (
-                                        <p className="text-brand-purple font-bold text-sm">Vyberte výdejní místo na mapě výše ↑</p>
                                     )}
+                                    {formErrors.pplPoint && <p className="text-red-500 text-sm mt-1">{formErrors.pplPoint}</p>}
                                 </div>
-                                {formErrors.pplPoint && <p className="text-red-500 text-sm mt-1">{formErrors.pplPoint}</p>}
-                            </div>
+                            )}
+
+                            {/* PPL MODAL */}
+                            {isPplModalOpen && (
+                                <div className="fixed inset-0 z-[200] flex items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm">
+                                    <div className="relative bg-white w-full h-full sm:h-[90vh] sm:max-w-5xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col">
+                                        <div className="p-4 border-b flex items-center justify-between bg-white">
+                                            <h3 className="font-black text-lg text-brand-purple">Výběr PPL ParcelShopu</h3>
+                                            <button 
+                                                type="button"
+                                                onClick={() => setIsPplModalOpen(false)}
+                                                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                        <div className="flex-grow relative bg-gray-100">
+                                            <div id="ppl-parcelshop-map" data-language="cs" className="w-full h-full min-h-[400px]"></div>
+                                        </div>
+                                        <div className="p-4 bg-gray-50 text-center text-xs text-gray-500">
+                                            Vyberte prosím výdejní místo přímo na mapě nebo v seznamu.
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                             <RadioCard name="shipping" value="ppl_address" title="PPL Doručení na adresu" price={shippingCosts['ppl_address'] === 0 ? "Zdarma" : `${shippingCosts['ppl_address']} Kč`} checked={shippingMethod === 'ppl_address'} onChange={(e: any) => setShippingMethod(e.target.value)} />
 
                             <p className="text-xs font-normal text-black uppercase pt-4">Zásilkovna</p>

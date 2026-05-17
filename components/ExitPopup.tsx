@@ -94,7 +94,7 @@ export const ExitPopup: React.FC = () => {
           </p>
 
           <div className="bg-gray-50 border-2 border-dashed border-brand-purple/30 rounded-2xl p-6 mb-8 relative group">
-            <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-white px-3 text-[10px] font-black text-brand-purple uppercase tracking-widest border border-brand-purple/20 rounded-full">
+            <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-white px-4 py-0.5 text-xs font-black text-brand-purple uppercase tracking-wider border border-brand-purple/20 rounded-full">
               Váš slevový kód
             </span>
             <div className="text-3xl font-black tracking-widest text-brand-purple">vitejte15</div>
@@ -118,4 +118,3 @@ export const ExitPopup: React.FC = () => {
     </div>
   );
 };
-

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { useProducts } from '../context/ProductContext';
 import { useCart } from '../context/CartContext';
 import { ProductVariant, CartItem, UploadedPhoto } from '../types';
@@ -425,9 +425,19 @@ const ProductDetailPage: React.FC = () => {
                                     <span className="text-[11px] font-black text-red-600 uppercase tracking-wide leading-tight">{validationError}</span>
                                 </div>
                             )}
-                            <button onClick={handleAddToCart} disabled={isAdded || uploading} className={`w-full py-4 rounded-xl text-white font-black text-xl uppercase tracking-widest transition-all shadow-lg active:scale-95 ${isAdded ? 'bg-green-500' : 'bg-brand-pink hover:opacity-95 disabled:grayscale'}`}>
-                                {isAdded ? 'PŘIDÁNO ✓' : uploading ? 'Ukládám...' : `VLOŽIT DO KOŠÍKU — ${formatPrice(finalTotal)} Kč`}
-                            </button>
+                            <div className="flex gap-3">
+                                <button onClick={handleAddToCart} disabled={isAdded || uploading} className={`flex-[3] py-4 rounded-xl text-white font-black text-xl uppercase tracking-widest transition-all shadow-lg active:scale-95 ${isAdded ? 'bg-green-500' : 'bg-brand-pink hover:opacity-95 disabled:grayscale'}`}>
+                                    {isAdded ? 'PŘIDÁNO ✓' : uploading ? 'Ukládám...' : `VLOŽIT DO KOŠÍKU — ${formatPrice(finalTotal)} Kč`}
+                                </button>
+                                {isAdded && (
+                                    <Link to="/kosik" className="flex-[2] bg-brand-purple text-white rounded-xl flex items-center justify-center gap-2 font-black text-sm uppercase tracking-widest shadow-xl hover:bg-brand-purple/90 transition-all animate-pulse">
+                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                                        </svg>
+                                        OBJEDNAT
+                                    </Link>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -449,13 +459,26 @@ const ProductDetailPage: React.FC = () => {
                             <span className="text-[10px] font-bold text-black uppercase tracking-wider block leading-none">Celkem:</span>
                             <span className="text-xl font-black text-brand-pink leading-tight">{formatPrice(finalTotal)} Kč</span>
                         </div>
-                        <button 
-                            onClick={handleAddToCart} 
-                            disabled={isAdded || uploading} 
-                            className={`flex-grow sm:flex-grow-0 sm:min-w-[200px] py-3 rounded-xl text-white font-black text-sm uppercase tracking-widest transition-all shadow-lg active:scale-95 ${isAdded ? 'bg-green-500' : 'bg-brand-pink hover:opacity-95 disabled:grayscale'}`}
-                        >
-                            {isAdded ? 'V KOŠÍKU ✓' : uploading ? 'Ukládám...' : 'DO KOŠÍKU'}
-                        </button>
+                        <div className="flex gap-2 flex-grow sm:flex-grow-0">
+                            <button 
+                                onClick={handleAddToCart} 
+                                disabled={isAdded || uploading} 
+                                className={`flex-grow sm:flex-grow-0 sm:min-w-[140px] py-3 rounded-xl text-white font-black text-sm uppercase tracking-widest transition-all shadow-lg active:scale-95 ${isAdded ? 'bg-green-500' : 'bg-brand-pink hover:opacity-95 disabled:grayscale'}`}
+                            >
+                                {isAdded ? 'V KOŠÍKU' : uploading ? '...' : 'DO KOŠÍKU'}
+                            </button>
+                            {isAdded && (
+                                <Link 
+                                    to="/kosik" 
+                                    className="flex-grow sm:flex-grow-0 sm:px-6 py-3 bg-brand-purple text-white rounded-xl shadow-lg font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95 transition-all"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                                    </svg>
+                                    KOŠÍK
+                                </Link>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>

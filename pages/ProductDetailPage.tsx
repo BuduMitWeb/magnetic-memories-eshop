@@ -210,7 +210,14 @@ const ProductDetailPage: React.FC = () => {
 
     return (
         <div className="bg-white min-h-screen pb-40">
-            <Seo title={product.name} description={product.shortDescription} image={activeMedia} />
+            <Seo 
+                title={`${product.name} | Vyrobte si z vlastních fotek | MagneticMemories.cz`} 
+                description={`Proměňte své oblíbené snímky v jedinečný produkt: ${product.name}. ${product.shortDescription} Snadné nahrání z telefonu, vysoká kvalita, rychlá doprava zdarma při nákupu nad 800 Kč.`} 
+                image={activeMedia} 
+                type="product"
+                price={currentUnitPrice}
+                availability="InStock"
+            />
             
             <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
                 <div className="lg:grid lg:grid-cols-2 lg:gap-x-12 lg:items-start">

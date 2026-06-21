@@ -42,5 +42,6 @@ export interface CartItem {
   customText?: { [key: string]: string };
   orientation?: 'portrait' | 'landscape';
   directMailing?: boolean; // New field for mailing service
+  addresses?: string[]; // Multiple receiver addresses
 }
 

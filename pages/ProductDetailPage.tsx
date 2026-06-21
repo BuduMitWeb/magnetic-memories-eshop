@@ -8,6 +8,7 @@ import { formatPrice } from '../utils/format';
 import { optimizeCloudinaryUrl } from '../utils/cloudinary';
 import { FileUpload } from '../components/FileUpload';
 import { isVideo } from '../utils/media';
+import { PregnancyEditorModal } from '../components/PregnancyEditorModal';
 
 const ProductDetailPage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -26,6 +27,20 @@ const ProductDetailPage: React.FC = () => {
     const [customText, setCustomText] = useState<{ [key: string]: string }>({});
     const [directMailing, setDirectMailing] = useState(false);
     const [validationError, setValidationError] = useState<string | null>(null);
+    const [addresses, setAddresses] = useState<string[]>([]);
+
+    // Update address count list size dynamically based on quantity
+    useEffect(() => {
+        setAddresses(prev => {
+            const next = [...prev];
+            if (next.length < quantity) {
+                while (next.length < quantity) next.push('');
+            } else if (next.length > quantity) {
+                next.splice(quantity);
+            }
+            return next;
+        });
+    }, [quantity]);
     
     // Typy produktů
     const isWedding = id === 'wedding-announcement';
@@ -33,6 +48,36 @@ const ProductDetailPage: React.FC = () => {
     const isInLove = id === 'in-love-magnets';
     const isMagnets = id === 'photomagnets';
     const isCalendar = id === 'magnetic-calendar';
+
+    const [isPregnancyEditorOpen, setIsPregnancyEditorOpen] = useState(false);
+
+    // Dynamické načtení Google písem pro Polaroid a ozdobné editory
+    useEffect(() => {
+        const link = document.createElement('link');
+        link.href = 'https://fonts.googleapis.com/css2?family=Alex+Brush&family=Caveat:wght@400;700&family=Cinzel:wght@600&family=Dancing+Script:wght@700&family=Great+Vibes&family=Montserrat:wght@400;700&family=Pinyon+Script&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap';
+        link.rel = 'stylesheet';
+        document.head.appendChild(link);
+        return () => {
+            document.head.removeChild(link);
+        };
+    }, []);
+
+    // Výchozí texty pro těhotenské oznámení
+    useEffect(() => {
+        if (isPregnancy) {
+            setCustomText({
+                t1: "Budeme tři...",
+                t2: "podzim 2026",
+                font: "Great Vibes",
+                color: "#191919",
+                photoScale: "100",
+                photoX: "0",
+                photoY: "0"
+            });
+        } else {
+            setCustomText({});
+        }
+    }, [id, isPregnancy]);
 
     // Volba designu (Svatba a Zamilované začínají v režimu motivů)
     const [designMode, setDesignMode] = useState<'motif' | 'custom'>(
@@ -108,17 +153,17 @@ const ProductDetailPage: React.FC = () => {
     const getSetPrice = (qty: number) => {
         const unit = selectedVariant?.price || product.price;
         if ((isPregnancy || isWedding) && selectedVariant?.id === 'a6') {
-            if (qty === 10) return 400; if (qty === 20) return 775;
-            if (qty === 50) return 1900; if (qty === 100) return 3750;
+            if (qty === 10) return 500; if (qty === 20) return 975;
+            if (qty === 50) return 2400; if (qty === 100) return 4750;
         }
-        if (qty === 9 && (isMagnets || isInLove)) return 205;
-        if (qty === 15 && (isMagnets || isInLove)) return 350;
-        if (qty === 30 && (isMagnets || isInLove)) return 700;
+        if (qty === 9 && (isMagnets || isInLove)) return 295;
+        if (qty === 15 && (isMagnets || isInLove)) return 500;
+        if (qty === 30 && (isMagnets || isInLove)) return 1000;
         return unit * qty;
     };
 
     const currentUnitPrice = (isPregnancy || isWedding) && selectedVariant?.id === 'a6' 
-        ? (quantity >= 100 ? 37.5 : quantity >= 50 ? 38 : quantity >= 20 ? 38.75 : quantity >= 10 ? 40 : 45)
+        ? (quantity >= 100 ? 47.5 : quantity >= 50 ? 48 : quantity >= 20 ? 48.75 : quantity >= 10 ? 50 : 55)
         : (selectedVariant?.price || product.price);
 
     const isSet = isCalendar ? false : ((isMagnets || isInLove) ? [9, 15, 30].includes(quantity) : [10, 20, 50, 100].includes(quantity));
@@ -172,11 +217,21 @@ const ProductDetailPage: React.FC = () => {
             }
         }
 
+        // Validate multiple delivery addresses if mailing is requested
+        if (directMailing) {
+            const emptyIdx = addresses.findIndex(a => !a || !a.trim());
+            if (emptyIdx !== -1) {
+                setValidationError(`Prosím doplňte doručovací adresu č. ${emptyIdx + 1} pro rozeslání.`);
+                return;
+            }
+        }
+
         setValidationError(null);
         const cartItem: CartItem = {
             id: `${product.id}-${Date.now()}`, product, quantity, price: baseTotal / quantity,
             variant: selectedVariant, photos: finalPhotos.length ? finalPhotos : [{ url: activeMedia, name: 'Motiv' }],
-            photoGroupId, customText, directMailing
+            photoGroupId, customText, directMailing,
+            addresses: directMailing ? addresses : undefined
         };
         dispatch({ type: 'ADD_ITEM', payload: cartItem });
         setIsAdded(true);
@@ -236,10 +291,15 @@ const ProductDetailPage: React.FC = () => {
                                 <span className="bg-brand-pink/90 backdrop-blur px-2.5 py-1 rounded-full text-xs font-black uppercase text-white shadow-sm">Vlastní fotky</span>
                             </div>
                         </div>
+
                         {/* GALLERY THUMBNAILS */}
                         <div className="grid grid-cols-5 gap-2">
                             {allMedia.map((m, i) => (
-                                <button key={i} onClick={() => setActiveMedia(m)} className={`relative aspect-square rounded-xl overflow-hidden border-2 transition-all flex items-center justify-center ${activeMedia === m ? 'border-brand-purple scale-95' : 'border-transparent opacity-60 hover:opacity-100'}`}>
+                                <button 
+                                    key={i} 
+                                    onClick={() => setActiveMedia(m)} 
+                                    className={`relative aspect-square rounded-xl overflow-hidden border-2 transition-all flex items-center justify-center ${activeMedia === m ? 'border-brand-purple scale-95' : 'border-transparent opacity-60 hover:opacity-100'}`}
+                                >
                                     {isVideo(m) ? (
                                         <div className="w-full h-full bg-gray-100 flex items-center justify-center">
                                             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-brand-purple/40" viewBox="0 0 20 20" fill="currentColor">
@@ -367,58 +427,177 @@ const ProductDetailPage: React.FC = () => {
                             )}
 
                             <div className="space-y-3 bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
-                                {product.hasTextFields && !isCalendar && !(isWedding && designMode === 'custom') && (
-                                    <div className="space-y-2">
-                                        <h3 className="text-xs font-bold text-brand-purple uppercase tracking-wider px-1">Doplňte text na oznámení:</h3>
-                                        <div className="grid grid-cols-1 gap-2">
-                                            <input placeholder={isWedding ? "Budeme se brát" : "Budeme tři..."} className={inputClasses} onChange={(e) => setCustomText(p => ({...p, t1: e.target.value}))} />
-                                            <input placeholder={isWedding ? "Eva a Adam" : "podzim 2026"} className={inputClasses} onChange={(e) => setCustomText(p => ({...p, t2: e.target.value}))} />
-                                            {isWedding && (
-                                                <div className="grid grid-cols-2 gap-2">
-                                                    <input placeholder="1. 1. 2029" className={inputClasses} onChange={(e) => setCustomText(p => ({...p, t3: e.target.value}))} />
-                                                    <input placeholder="Místo" className={inputClasses} onChange={(e) => setCustomText(p => ({...p, t4: e.target.value}))} />
+                                {isPregnancy ? (
+                                    <div className="space-y-4">
+                                        {finalPhotos.length === 0 ? (
+                                            <div className="space-y-4">
+                                                <div className="bg-brand-purple/5 border border-brand-purple/10 rounded-2xl p-5 text-center space-y-4">
+                                                    <div className="mx-auto w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm">
+                                                        <span className="text-2xl animate-bounce">🤰</span>
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="font-black text-gray-950 uppercase tracking-widest text-xs">Vytvořte si těhotenské oznámení</h4>
+                                                        <p className="text-[11px] text-gray-500 font-medium mt-1 leading-relaxed">
+                                                            Nahrajte nejdříve snímek z ultrazvuku. <b className="text-brand-purple">Vyskakovací grafický editor (s ořezem, volbou ozdobného písma, barvy a textu)</b> se vám otevře ihned po nahrání fotky.
+                                                        </p>
+                                                    </div>
+                                                    <FileUpload 
+                                                        onUploadComplete={(p, g) => {
+                                                            setFinalPhotos(p); 
+                                                            setPhotoGroupId(g);
+                                                            setIsPregnancyEditorOpen(true);
+                                                        }} 
+                                                        requiredCount={1} 
+                                                        productName={product.name} 
+                                                        onUploadingChange={setUploading} 
+                                                        currentPhotos={finalPhotos}
+                                                        aspect={currentAspect}
+                                                        sizeLabel={selectedVariant?.name}
+                                                        labelHint="(např. snímek ultrazvuku)"
+                                                    />
                                                 </div>
-                                            )}
-                                            <textarea placeholder="Speciální přání (font, barva textu...)" className={inputClasses + " resize-none h-16 text-xs"} onChange={(e) => setCustomText(p => ({...p, msg: e.target.value}))} />
-                                        </div>
-                                    </div>
-                                )}
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-4">
+                                                <div className="bg-white border-2 border-brand-purple/10 rounded-2xl p-4 shadow-sm space-y-3">
+                                                    <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                                                        <span className="text-xs font-black uppercase tracking-widest text-brand-purple">Váš Grafický Návrh</span>
+                                                        <span className="text-[10px] bg-green-100 text-green-800 font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">Foto nahráno ✓</span>
+                                                    </div>
+                                                    <div className="space-y-2 text-xs font-medium text-gray-600">
+                                                        <div className="flex justify-between">
+                                                            <span>Hlavní text:</span>
+                                                            <span className="font-extrabold text-gray-900">"{customText.t1 || 'Budeme tři...'}"</span>
+                                                        </div>
+                                                        <div className="flex justify-between">
+                                                            <span>Doplňující text:</span>
+                                                            <span className="font-extrabold text-gray-900">"{customText.t2 || 'podzim 2026'}"</span>
+                                                        </div>
+                                                        <div className="flex justify-between">
+                                                            <span>Styl písma (font):</span>
+                                                            <span className="font-extrabold text-brand-pink">{customText.font || 'Great Vibes'}</span>
+                                                        </div>
+                                                        <div className="flex justify-between">
+                                                            <span>Barva textu:</span>
+                                                            <span className="flex items-center gap-1 font-extrabold text-gray-900">
+                                                                <span className="w-3 h-3 rounded-full border border-black/10" style={{ backgroundColor: customText.color || '#191919' }} />
+                                                                {customText.color === '#2B82C9' ? 'Baby Blue' : customText.color === '#D84B8E' ? 'Baby Pink' : customText.color === '#E11D48' ? 'Rose Gold' : customText.color === '#C084FC' ? 'Fialová' : customText.color === '#1E3A8A' ? 'Modrá' : customText.color === '#4B5563' ? 'Přírodně šedá' : customText.color === '#78350F' ? 'Čokoládová' : customText.color === '#D4AF37' ? 'Zlatá' : 'Černá'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
 
-                                {effectiveRequiredPhotos > 0 && (
-                                    <FileUpload 
-                                        onUploadComplete={(p, g) => {setFinalPhotos(p); setPhotoGroupId(g);}} 
-                                        requiredCount={effectiveRequiredPhotos} 
-                                        productName={product.name} 
-                                        onUploadingChange={setUploading} 
-                                        currentPhotos={finalPhotos}
-                                        aspect={currentAspect}
-                                        sizeLabel={selectedVariant?.name}
-                                        hideUpload={isInLove && designMode === 'motif'}
-                                        labelHint={
-                                            (isMagnets || isInLove) && designMode !== 'motif' ? `rozdělte ${quantity} ks mezi fotky` :
-                                            (isWedding && designMode === 'custom') ? "vložte hotovou grafiku" :
-                                            (isWedding && currentWeddingMotif === 'Film') ? "3 až 5 fotek" :
-                                            isInLove && designMode === 'motif' ? "vyberte motivy z galerie" :
-                                            isPregnancy ? "(např. ultrazvuk)" : 
-                                            isCalendar ? "(12 fotek)" : 
-                                            isWedding ? "(vaše fotka)" : undefined
-                                        }
-                                    />
+                                                    <button 
+                                                        type="button"
+                                                        onClick={() => setIsPregnancyEditorOpen(true)}
+                                                        className="w-full mt-2 py-3 bg-brand-purple hover:bg-brand-purple/95 text-white rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                                                    >
+                                                        🎨 Upravit fotku, písmo a text
+                                                    </button>
+                                                    
+                                                    {/* Option to change photo easily */}
+                                                    <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-[11px]">
+                                                        <span className="text-gray-400 font-bold uppercase tracking-wider">Chcete změnit fotografii?</span>
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => {
+                                                                setFinalPhotos([]);
+                                                            }}
+                                                            className="text-brand-pink font-black hover:underline uppercase tracking-wide"
+                                                        >
+                                                            Nahrát jinou
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <>
+                                        {product.hasTextFields && !isCalendar && !(isWedding && designMode === 'custom') && (
+                                            <div className="space-y-2">
+                                                <h3 className="text-xs font-bold text-brand-purple uppercase tracking-wider px-1">Doplňte text na oznámení:</h3>
+                                                <div className="grid grid-cols-1 gap-2">
+                                                    <input placeholder={isWedding ? "Budeme se brát" : "Budeme tři..."} className={inputClasses} onChange={(e) => setCustomText(p => ({...p, t1: e.target.value}))} />
+                                                    <input placeholder={isWedding ? "Eva a Adam" : "podzim 2026"} className={inputClasses} onChange={(e) => setCustomText(p => ({...p, t2: e.target.value}))} />
+                                                    {isWedding && (
+                                                        <div className="grid grid-cols-2 gap-2">
+                                                            <input placeholder="1. 1. 2029" className={inputClasses} onChange={(e) => setCustomText(p => ({...p, t3: e.target.value}))} />
+                                                            <input placeholder="Místo" className={inputClasses} onChange={(e) => setCustomText(p => ({...p, t4: e.target.value}))} />
+                                                        </div>
+                                                    )}
+                                                    <textarea placeholder="Speciální přání (font, barva textu...)" className={inputClasses + " resize-none h-16 text-xs"} onChange={(e) => setCustomText(p => ({...p, msg: e.target.value}))} />
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {effectiveRequiredPhotos > 0 && (
+                                            <FileUpload 
+                                                onUploadComplete={(p, g) => {setFinalPhotos(p); setPhotoGroupId(g);}} 
+                                                requiredCount={effectiveRequiredPhotos} 
+                                                productName={product.name} 
+                                                onUploadingChange={setUploading} 
+                                                currentPhotos={finalPhotos}
+                                                aspect={currentAspect}
+                                                sizeLabel={selectedVariant?.name}
+                                                hideUpload={isInLove && designMode === 'motif'}
+                                                labelHint={
+                                                    (isMagnets || isInLove) && designMode !== 'motif' ? `rozdělte ${quantity} ks mezi fotky` :
+                                                    (isWedding && designMode === 'custom') ? "vložte hotovou grafiku" :
+                                                    (isWedding && currentWeddingMotif === 'Film') ? "3 až 5 fotek" :
+                                                    isInLove && designMode === 'motif' ? "vyberte motivy z galerie" :
+                                                    isPregnancy ? "(např. ultrazvuk)" : 
+                                                    isCalendar ? "(12 fotek)" : 
+                                                    isWedding ? "(vaše fotka)" : undefined
+                                                }
+                                            />
+                                        )}
+                                    </>
                                 )}
                             </div>
                         </section>
 
                         {/* 4. ROZESLÁNÍ */}
                         {(isWedding || isPregnancy) && (
-                            <section>
+                            <section className="space-y-3">
                                 <h2 className="text-xs font-bold text-gray-800 uppercase tracking-wider mb-2">4. Rozeslání</h2>
                                 <label className={`flex items-start space-x-3 p-4 rounded-2xl border-2 cursor-pointer transition-all shadow-sm ${directMailing ? 'bg-brand-purple/5 border-brand-purple' : 'bg-white border-gray-100 hover:border-gray-200'}`}>
-                                    <input type="checkbox" checked={directMailing} onChange={() => setDirectMailing(!directMailing)} className="mt-0.5 h-5 w-5 text-brand-purple rounded border-gray-300 focus:ring-brand-purple" />
+                                    <input type="checkbox" checked={directMailing} onChange={() => setDirectMailing(!directMailing)} className="mt-0.5 h-5 w-5 text-brand-purple rounded border-gray-300 focus:ring-brand-purple cursor-pointer" />
                                     <div>
                                         <p className="font-bold text-gray-800 text-sm">Rozeslat na jednotlivé adresy</p>
-                                         <p className="text-[11px] text-black font-bold">+100 Kč / ks (adresy pak pošlete mailem)</p>
+                                         <p className="text-[11px] text-black font-bold">+100 Kč / ks (adresy vyplňte níže podle počtu kusů)</p>
                                     </div>
                                 </label>
+
+                                {directMailing && (
+                                    <div className="bg-gray-50 p-4 rounded-2xl space-y-3 border border-gray-100">
+                                        <h3 className="text-xs font-black text-brand-purple uppercase tracking-widest flex items-center gap-1.5">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-brand-pink"></span>
+                                            Doručení na individuální adresy ({quantity} ks)
+                                        </h3>
+                                        <p className="text-[10px] text-gray-500 font-bold leading-normal">
+                                            Pro každý objednaný kus vyplňte doručovací adresu (jméno adresáta, ulice, obec, PSČ):
+                                        </p>
+                                        <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+                                            {Array.from({ length: quantity }).map((_, idx) => (
+                                                <div key={idx} className="flex gap-2 items-center">
+                                                    <span className="text-[10px] font-black text-gray-400 w-8 text-right shrink-0">#{idx + 1}</span>
+                                                    <input 
+                                                        type="text"
+                                                        value={addresses[idx] || ''}
+                                                        onChange={(e) => {
+                                                            const newAddrs = [...addresses];
+                                                            newAddrs[idx] = e.target.value;
+                                                            setAddresses(newAddrs);
+                                                        }}
+                                                        placeholder="Např: Jan Novák, Pražská 123, Praha, 11000"
+                                                        className="flex-grow py-2 px-3 bg-white border border-gray-200/80 rounded-xl text-xs outline-none focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple shadow-sm font-medium"
+                                                        required
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </section>
                         )}
 
@@ -489,6 +668,39 @@ const ProductDetailPage: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            {isPregnancy && isPregnancyEditorOpen && finalPhotos.length > 0 && (
+                <PregnancyEditorModal 
+                    image={customText.originalImageUrl || finalPhotos[0].url}
+                    aspect={currentAspect}
+                    sizeLabel={selectedVariant?.name}
+                    initialCustomText={customText}
+                    onConfirm={(finalText) => {
+                        const originalUrl = customText.originalImageUrl || finalPhotos[0].url;
+                        const updatedText = {
+                            ...finalText,
+                            originalImageUrl: originalUrl
+                        };
+                        setCustomText(updatedText);
+                        
+                        if (finalText.designedImageUrl) {
+                            setFinalPhotos(prev => {
+                                if (prev.length > 0) {
+                                    const updated = [...prev];
+                                    updated[0] = {
+                                        ...updated[0],
+                                        url: finalText.designedImageUrl
+                                    };
+                                    return updated;
+                                }
+                                return prev;
+                            });
+                        }
+                        setIsPregnancyEditorOpen(false);
+                    }}
+                    onCancel={() => setIsPregnancyEditorOpen(false)}
+                />
+            )}
         </div>
     );
 };

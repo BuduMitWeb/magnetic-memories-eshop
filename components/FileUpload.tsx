@@ -28,7 +28,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onUploadComplete, requir
   const CLOUDINARY_CLOUD_NAME = 'dvzuwzrpm'; 
   const CLOUDINARY_UPLOAD_PRESET = 'magnetic_preset'; 
 
-  const isMagnet = productName.toLowerCase().includes('magnet');
+  const isMerch = productName.toLowerCase().includes('merch');
+  const isMagnet = (productName.toLowerCase().includes('magnet') && !productName.toLowerCase().includes('těhoten')) || isMerch;
 
   useEffect(() => {
     if (currentPhotos) {
@@ -161,22 +162,22 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onUploadComplete, requir
     <div className="mt-4 space-y-2">
       <div className="flex items-center justify-between">
         <div className="flex flex-col">
-          <h3 className="text-[10px] font-bold text-gray-900 uppercase tracking-wider">
+           <h3 className="text-[10px] font-bold text-gray-900 uppercase tracking-wider">
             {requiredCount > 0 ? (
-              isMagnet ? `Nahrajte fotky (celkem ${requiredCount} ks magnetů)` : `Nahrajte ${requiredCount} ${requiredCount === 1 ? 'fotku' : 'fotek'}`
+              isMagnet ? `Nahrajte fotky (celkem ${requiredCount} ks ${isMerch ? 'předmětů' : 'magnetů'})` : `Nahrajte ${requiredCount} ${requiredCount === 1 ? 'fotku' : 'fotek'}`
             ) : 'Nahrajte fotku'} 
             {labelHint && <span className="text-brand-purple lowercase font-normal ml-1 italic">{labelHint}</span>}
           </h3>
           {isMagnet && (
             <p className="text-[9px] font-bold text-brand-pink uppercase">
-              Rozděleno: {totalAssigned} z {requiredCount} magnetů
+              Rozděleno: {totalAssigned} z {requiredCount} {isMerch ? 'kusů' : 'magnetů'}
               {totalAssigned > requiredCount && <span className="text-red-500 ml-1">(! limit překročen)</span>}
             </p>
           )}
         </div>
         {internalPhotos.length > 0 && !uploading && (
             <span className={`text-[9px] font-bold px-2 py-0.5 rounded border ${totalAssigned === requiredCount ? 'text-green-600 bg-green-50 border-green-200' : 'text-brand-purple bg-purple-50 border-purple-200'}`}>
-                {isMagnet ? `Magnety: ${totalAssigned}/${requiredCount}` : `Fotky: ${internalPhotos.length}/${requiredCount}`}
+                {isMagnet ? `${isMerch ? 'Kusy' : 'Magnety'}: ${totalAssigned}/${requiredCount}` : `Fotky: ${internalPhotos.length}/${requiredCount}`}
             </span>
         )}
       </div>

@@ -44,7 +44,8 @@ const COUPON_RULES: { [key: string]: CouponRule } = {
     'VANOCE10': { rate: 0.10 },
     'LASKA10': { rate: 0.10, minSubtotal: 300 },
     'SOUTEZ30': { rate: 0.30, minSubtotal: 300 },
-    'VITEJTE15': { rate: 0.15 } // Podpora obou verzí pro jistotu
+    'VITEJTE15': { rate: 0.15 }, // Podpora obou verzí pro jistotu
+    'VITEJTE10': { rate: 0.10 }
 };
 
 const FREE_SHIPPING_THRESHOLD = 800;
@@ -149,7 +150,7 @@ const CheckoutPage: React.FC = () => {
         if (!normalizedCode) return;
         
         // Speciální kontrola pro malými i velkými
-        const rule = normalizedCode === 'VITEJTE15' ? COUPON_RULES['VITEJTE15'] : COUPON_RULES[normalizedCode];
+        const rule = (normalizedCode === 'VITEJTE15' || normalizedCode === 'VITEJTE10') ? COUPON_RULES[normalizedCode] : COUPON_RULES[normalizedCode];
         
         if (rule) {
             if (rule.minSubtotal && subtotal < rule.minSubtotal) {
@@ -160,7 +161,8 @@ const CheckoutPage: React.FC = () => {
                 });
             } else {
                 // Zachováme původní text kódu pro zobrazení
-                setAppliedCoupon({ code: normalizedCode.toLowerCase() === 'vitejte15' ? 'vitejte15' : normalizedCode, rate: rule.rate });
+                const isWelcomeCode = normalizedCode.toLowerCase() === 'vitejte15' || normalizedCode.toLowerCase() === 'vitejte10';
+                setAppliedCoupon({ code: isWelcomeCode ? normalizedCode.toLowerCase() : normalizedCode, rate: rule.rate });
                 setCouponMessage({ text: `Kód byl úspěšně uplatněn.`, type: 'success' });
             }
         } else {
@@ -231,6 +233,13 @@ const CheckoutPage: React.FC = () => {
     };
 
     const sendEmailNotifications = async (order: OrderDetails) => {
+        const cleanHtml = (html: string): string => {
+            return html
+                .replace(/\s+/g, ' ')                   // Compress any consecutive whitespace/newlines to a single space
+                .replace(/>\s+</g, '><')                // Remove whitespace between HTML tags completely
+                .trim();
+        };
+
         const vs = order.orderNumber;
         const currentDate = new Date().toLocaleDateString('cs-CZ');
         const fullName = `${order.contact.firstName} ${order.contact.lastName}`;
@@ -334,7 +343,12 @@ const CheckoutPage: React.FC = () => {
         };
 
         itemsHtml += `<tr><td style="${styleTd}">Doprava: ${shippingNameMap[order.shipping] || order.shipping}${shippingPointInfo}</td><td style="${styleTd} text-align: center;">1</td><td style="${styleTdPrice}">${formatPrice(order.shippingCost)} Kč</td></tr>`;
-        itemsHtml += `<tr><td style="${styleTd}">Platba: ${order.payment}</td><td style="${styleTd} text-align: center;">1</td><td style="${styleTdPrice}">${formatPrice(order.paymentCost)} Kč</td></tr>`;
+        itemsHtml += `<tr><td style="${styleTd}">Platba: ${order.payment === 'prevodem' ? 'Bankovním převodem' : order.payment}</td><td style="${styleTd} text-align: center;">1</td><td style="${styleTdPrice}">${formatPrice(order.paymentCost)} Kč</td></tr>`;
+        
+        if (order.discountAmount && order.discountAmount > 0) {
+            itemsHtml += `<tr><td style="${styleTd} color: #16a34a; font-weight: bold;">Sleva (${(order.couponCode || 'Slevový kód').toUpperCase()})</td><td style="${styleTd} text-align: center; color: #16a34a; font-weight: bold;">1</td><td style="${styleTdPrice} color: #16a34a;">-${formatPrice(order.discountAmount)} Kč</td></tr>`;
+        }
+        
         itemsHtml += `<tr style="background-color: #fdf2f8;"><td colspan="2" style="padding: 16px 12px; text-align: right; font-weight: bold;">CELKEM K ÚHRADĚ</td><td style="padding: 16px 12px; text-align: right; font-weight: bold; font-size: 20px; color: #831843;">${formatPrice(order.total)} Kč</td></tr></tbody></table>`;
 
         const customerInfoHtml = `
@@ -377,9 +391,9 @@ const CheckoutPage: React.FC = () => {
             total_price: formatPrice(order.total) + ' Kč',
             marketing_consent: order.marketingConsent ? 'ANO' : 'NE',
             note: order.additionalInfo || 'Žádná poznámka',
-            items_html: itemsHtml, 
-            payment_details: paymentDetailsHtml,
-            customer_header: customerInfoHtml
+            items_html: cleanHtml(itemsHtml), 
+            payment_details: cleanHtml(paymentDetailsHtml),
+            customer_header: cleanHtml(customerInfoHtml)
         };
         
         try {
@@ -422,7 +436,8 @@ const CheckoutPage: React.FC = () => {
                     unit_price: unitPrice,
                     amount: unitPrice * i.quantity,
                     unit: 'ks',
-                    vat_rate: 0
+                    vat_rate: 0,
+                    custom_text_raw: i.customText || null
                 };
             });
 
@@ -434,7 +449,8 @@ const CheckoutPage: React.FC = () => {
                     unit_price: order.shippingCost,
                     amount: order.shippingCost,
                     unit: 'ks',
-                    vat_rate: 0
+                    vat_rate: 0,
+                    custom_text_raw: null
                 });
             }
 
@@ -446,7 +462,8 @@ const CheckoutPage: React.FC = () => {
                     unit_price: -order.discountAmount,
                     amount: -order.discountAmount,
                     unit: 'ks',
-                    vat_rate: 0
+                    vat_rate: 0,
+                    custom_text_raw: null
                 });
             }
 
@@ -574,10 +591,8 @@ const CheckoutPage: React.FC = () => {
                                         )}
                                         
                                         {item.customText && Object.values(item.customText).some(v => v) && (
-                                            <div className="mt-2 text-[10px] text-gray-500 bg-gray-50 p-2 rounded border border-dashed border-gray-200">
-                                                {Object.entries(item.customText).map(([key, val]) => val && (
-                                                    <div key={key}><span className="font-bold uppercase opacity-70">{key}:</span> {val}</div>
-                                                ))}
+                                            <div className="mt-2 text-[10px] text-brand-purple font-bold bg-brand-purple/5 py-1.5 px-3 rounded border border-dashed border-brand-purple/15 inline-block">
+                                                🎨 Vlastní grafický návrh uložen k výrobě ✓
                                             </div>
                                         )}
                                     </div>
@@ -587,6 +602,48 @@ const CheckoutPage: React.FC = () => {
                                     </div>
                                 </div>
                             ))}
+                        </div>
+                        
+                        {/* Cart Summary Breakdown inside card to visually show discount and total */}
+                        <div className="mt-8 pt-6 border-t border-gray-100 space-y-3 text-sm">
+                            <div className="flex justify-between text-gray-500 font-medium">
+                                <span>Mezisoučet za produkty</span>
+                                <span className="font-bold text-gray-900">{formatPrice(subtotal)} Kč</span>
+                            </div>
+                            
+                            {discountAmount > 0 && (
+                                <div className="flex justify-between items-center text-green-600 font-medium bg-green-50/70 py-2 px-3 rounded-lg border border-green-100/60 animate-in fade-in duration-300">
+                                    <span className="flex items-center gap-1.5">
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                        </svg>
+                                        <span>Sleva ({appliedCoupon?.code?.toUpperCase()})</span>
+                                    </span>
+                                    <span className="font-black">-{formatPrice(discountAmount)} Kč</span>
+                                </div>
+                            )}
+
+                            {shippingMethod && (
+                                <div className="flex justify-between text-gray-500 font-medium pb-1">
+                                    <span>
+                                        Doprava (
+                                        {shippingMethod === 'balikovna_point' ? 'Balíkovna' :
+                                         shippingMethod === 'zasilkovna_point' ? 'Zásilkovna' :
+                                         shippingMethod === 'zasilkovna_address' ? 'Zásilkovna domů' :
+                                         shippingMethod === 'ppl_parcelshop' ? 'PPL ParcelShop' :
+                                         shippingMethod === 'ppl_address' ? 'PPL domů' : 'Osobní odběr'}
+                                        )
+                                    </span>
+                                    <span className="font-bold text-gray-900">
+                                        {shippingCost === 0 ? 'Zdarma' : `${shippingCost} Kč`}
+                                    </span>
+                                </div>
+                            )}
+
+                            <div className="flex justify-between text-[15px] font-black text-dark-gray pt-4 border-t border-gray-100/80">
+                                <span>Mezisoučet k úhradě</span>
+                                <span className="text-brand-pink text-lg font-black">{formatPrice(total)} Kč</span>
+                            </div>
                         </div>
                     </section>
 

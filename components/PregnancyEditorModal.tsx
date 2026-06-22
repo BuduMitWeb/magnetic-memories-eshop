@@ -127,7 +127,7 @@ export const PregnancyEditorModal: React.FC<PregnancyEditorModalProps> = ({
         useCORS: true,
         allowTaint: false,
         scale: 4, // Super crisp high resolution for prints
-        backgroundColor: '#FCFAF6',
+        backgroundColor: '#FFFFFF',
         scrollX: window.scrollX,
         scrollY: window.scrollY,
         logging: false,
@@ -430,17 +430,18 @@ export const PregnancyEditorModal: React.FC<PregnancyEditorModalProps> = ({
             {/* Simulated magnetic card with correct dynamic portrait/landscape ratio */}
             <div 
               id="pregnancy-preview-card"
-              className={`w-full max-w-[280px] sm:max-w-[315px] bg-[#FCFAF6] border border-gray-200 shadow-lg relative flex overflow-hidden select-none rounded-none transition-all ${
+              className={`w-full max-w-[280px] sm:max-w-[315px] bg-white border border-gray-200 shadow-lg relative flex overflow-hidden select-none rounded-none transition-all ${
                 orientation === 'portrait' ? 'flex-col justify-between p-4' : 'flex-row items-center p-3'
               }`}
               style={{ 
-                aspectRatio: orientation === 'portrait' ? (aspect || 10/15) : (15/10)
+                aspectRatio: orientation === 'portrait' ? (aspect || 10/15) : (1 / (aspect || 10/15)),
+                border: '1px solid #e5e7eb'
               }}
             >
               
               {/* Photo Area Container with overflow-visible to support handles outside the edges */}
               <div 
-                className={`relative overflow-visible bg-[#FCFAF6] rounded-none border border-transparent ${
+                className={`relative overflow-visible bg-white rounded-none border border-transparent ${
                   orientation === 'portrait' ? 'w-full flex-grow min-h-0 mb-3' : 'h-full flex-grow min-w-0 mr-3'
                 }`}
               >
@@ -1019,5 +1020,4 @@ export const PregnancyEditorModal: React.FC<PregnancyEditorModalProps> = ({
 
       </div>
     </div>
-  );
-};
+  

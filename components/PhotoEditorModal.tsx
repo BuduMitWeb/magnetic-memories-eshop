@@ -139,7 +139,7 @@ export const PhotoEditorModal: React.FC<PhotoEditorModalProps> = ({
         useCORS: true,
         allowTaint: false,
         scale: 4, // Super high detailed crisp rendering for prints
-        backgroundColor: '#FCFAF6',
+        backgroundColor: '#FFFFFF',
         scrollX: window.scrollX,
         scrollY: window.scrollY,
         logging: false
@@ -216,7 +216,7 @@ export const PhotoEditorModal: React.FC<PhotoEditorModalProps> = ({
                     ? '4% 4% 18% 4%' // Polaroid Frame Borders: Top/Left/Right are thin, Bottom is wide
                     : '0px',
                   boxShadow: 'none',
-                  border: hasPolaroid && frameColor === '#FFFFFF' ? '1px solid rgba(0,0,0,0.06)' : 'none'
+                  border: '1px solid #e5e7eb'
                 }}
               >
                 

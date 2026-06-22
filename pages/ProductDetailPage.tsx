@@ -249,6 +249,21 @@ const ProductDetailPage: React.FC = () => {
     const currentAspect = useMemo(() => {
         if (!selectedVariant) return 1;
         const name = selectedVariant.name.toLowerCase();
+        
+        // Prefer explicit ISO paper standard sizes first for precise dimensions
+        if (name.includes('a6')) {
+            // Skutečný fyzický formát A6 je 105 x 148 mm (poměr ~0.7095)
+            return 10.5 / 14.8;
+        }
+        if (name.includes('a5')) {
+            // Skutečný fyzický formát A5 je 148 x 210 mm (poměr ~0.7048)
+            return 14.8 / 21.0;
+        }
+        if (name.includes('a4')) {
+            // Skutečný fyzický formát A4 je 210 x 297 mm (poměr ~0.7071)
+            return 21.0 / 29.7;
+        }
+
         if (name.includes('x')) {
             const parts = name.split(' ')[0].split('x');
             if (parts.length === 2) {
@@ -257,9 +272,6 @@ const ProductDetailPage: React.FC = () => {
                 if (!isNaN(w) && !isNaN(h)) return w / h;
             }
         }
-        if (name.includes('a6')) return 10/15;
-        if (name.includes('a5')) return 15/21;
-        if (name.includes('a4')) return 21/29.7;
         return 1;
     }, [selectedVariant]);
 

@@ -277,26 +277,32 @@ const CheckoutPage: React.FC = () => {
             totalItemsQuantity += item.quantity;
             totalItemsPrice += itemPriceTotal;
 
-            let variantInfo = item.variant ? `<br><span style="font-size: 12px; color: #6b7280;">Varianta: ${item.variant.name}</span>` : '';
+            let variantInfo = item.variant ? `<br><span style="font-size: 12px; color: #6b7280;"><strong>Rozměr/Varianta:</strong> ${item.variant.name}</span>` : '';
             
             let customTextsHtml = '';
             if (item.customText) {
+                const allowedKeys = ['t1', 't2', 'text1', 'text2', 'text3', 'text4', 'comment'];
                 const labels: { [key: string]: string } = {
+                    t1: 'Hlavní text',
                     text1: 'Hlavní text',
+                    t2: 'Doplňující text',
                     text2: item.product.id === 'wedding-announcement' ? 'Jména snoubenců' : 'Datum/Období',
                     text3: 'Datum',
                     text4: 'Místo',
                     comment: 'Speciální přání'
                 };
                 
-                customTextsHtml = '<div style="margin-top: 8px; border-left: 2px solid #EA5C9D; padding-left: 10px; font-size: 12px;">';
+                let textLines: string[] = [];
                 Object.entries(item.customText).forEach(([key, value]) => {
-                    if (value && value.trim() !== '') {
+                    if (allowedKeys.includes(key) && value && typeof value === 'string' && value.trim() !== '') {
                         const label = labels[key] || key;
-                        customTextsHtml += `<div><strong style="color: #EA5C9D;">${label}:</strong> ${value}</div>`;
+                        textLines.push(`<div><strong style="color: #EA5C9D;">${label}:</strong> ${value}</div>`);
                     }
                 });
-                customTextsHtml += '</div>';
+                
+                if (textLines.length > 0) {
+                    customTextsHtml = `<div style="margin-top: 8px; border-left: 2px solid #EA5C9D; padding-left: 10px; font-size: 12px;">${textLines.join('')}</div>`;
+                }
             }
 
             let photosHtml = '<div style="margin-top: 10px;">';
@@ -421,10 +427,22 @@ const CheckoutPage: React.FC = () => {
                 const photosInfo = i.photos.map((p, idx) => `Foto ${idx+1}${p.quantity ? ` (${p.quantity}x)` : ''}: ${p.url}`).join(' | ');
                 
                 if (i.customText) {
-                    itemExtraInfo = ' (Texty: ' + Object.entries(i.customText)
-                        .filter(([_, v]) => v && v.trim() !== '')
-                        .map(([k, v]) => `${k}: ${v}`)
-                        .join(', ') + ')';
+                    const allowedKeys = ['t1', 't2', 'text1', 'text2', 'text3', 'text4', 'comment'];
+                    const labels: { [key: string]: string } = {
+                        t1: 'Hlavní text',
+                        text1: 'Hlavní text',
+                        t2: 'Doplňující text',
+                        text2: i.product.id === 'wedding-announcement' ? 'Jména snoubenců' : 'Datum/Období',
+                        text3: 'Datum',
+                        text4: 'Místo',
+                        comment: 'Speciální přání'
+                    };
+                    const textParts = Object.entries(i.customText)
+                        .filter(([k, v]) => allowedKeys.includes(k) && v && typeof v === 'string' && v.trim() !== '')
+                        .map(([k, v]) => `${labels[k] || k}: ${v}`);
+                    if (textParts.length > 0) {
+                        itemExtraInfo = ' (Texty: ' + textParts.join(', ') + ')';
+                    }
                 }
 
                 const unitPrice = i.price + (mailingFee * piecesInPackage);

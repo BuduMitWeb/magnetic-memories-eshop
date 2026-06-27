@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import html2canvas from 'html2canvas';
 
 interface PregnancyEditorModalProps {
@@ -102,17 +102,32 @@ export const PregnancyEditorModal: React.FC<PregnancyEditorModalProps> = ({
   // Currently selected font options
   const currentFontObj = AVAILABLE_FONTS.find((f) => f.id === font) || AVAILABLE_FONTS[0];
 
-  // Pre-calculate inner relative crop transforms for pure percentage CSS standard rendering
-  const safeXDivisor = 100 - clipLeft - clipRight;
-  const safeYDivisor = 100 - clipTop - clipBottom;
-  
-  const scaleXMultiplier = safeXDivisor > 0 ? 100 / safeXDivisor : 1;
-  const scaleYMultiplier = safeYDivisor > 0 ? 100 / safeYDivisor : 1;
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
 
-  const innerWidthPct = 100 * scaleXMultiplier;
-  const innerHeightPct = 100 * scaleYMultiplier;
-  const innerLeftPct = -clipLeft * scaleXMultiplier;
-  const innerTopPct = -clipTop * scaleYMultiplier;
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const cardAspect = orientation === 'portrait' ? (aspect || 10/15) : (1 / (aspect || 10/15));
+  const cardWidth = orientation === 'portrait' 
+    ? (windowWidth < 360 ? 250 : windowWidth < 400 ? 280 : 315)
+    : (windowWidth < 480 ? 280 : windowWidth < 640 ? 350 : 420);
+  const cardHeight = Math.round(cardWidth / cardAspect);
+
+  const photoContainerRef = useRef<HTMLDivElement>(null);
+  const [photoContainerAspect, setPhotoContainerAspect] = useState<number>(1);
+  const [imgNaturalAspect, setImgNaturalAspect] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (photoContainerRef.current) {
+      const rect = photoContainerRef.current.getBoundingClientRect();
+      if (rect.width && rect.height) {
+        setPhotoContainerAspect(rect.width / rect.height);
+      }
+    }
+  }, [orientation, windowWidth, clipLeft, clipRight, clipTop, clipBottom]);
 
   const handleSave = async () => {
     setIsExporting(true);
@@ -430,17 +445,19 @@ export const PregnancyEditorModal: React.FC<PregnancyEditorModalProps> = ({
             {/* Simulated magnetic card with correct dynamic portrait/landscape ratio */}
             <div 
               id="pregnancy-preview-card"
-              className={`w-full max-w-[280px] sm:max-w-[315px] bg-white border border-gray-200 shadow-lg relative flex overflow-hidden select-none rounded-none transition-all ${
+              className={`bg-white border border-gray-200 shadow-lg relative flex overflow-hidden select-none rounded-none transition-all ${
                 orientation === 'portrait' ? 'flex-col justify-between p-4' : 'flex-row items-center p-3'
               }`}
               style={{ 
-                aspectRatio: orientation === 'portrait' ? (aspect || 10/15) : (1 / (aspect || 10/15)),
+                width: `${cardWidth}px`,
+                height: `${cardHeight}px`,
                 border: '1px solid #e5e7eb'
               }}
             >
               
               {/* Photo Area Container with overflow-visible to support handles outside the edges */}
               <div 
+                ref={photoContainerRef}
                 className={`relative overflow-visible bg-white rounded-none border border-transparent ${
                   orientation === 'portrait' ? 'w-full flex-grow min-h-0 mb-3' : 'h-full flex-grow min-w-0 mr-3'
                 }`}
@@ -546,57 +563,79 @@ export const PregnancyEditorModal: React.FC<PregnancyEditorModalProps> = ({
                   title="Chytit a táhnout pro posun fotky uvnitř rámečku"
                 />
  
-                {/* Dimmed background layer showing parts which are cropped out */}
+                {/* Fully lit underlying image layer */}
                 <img 
-                  data-html2canvas-ignore
                   src={image} 
                   crossOrigin="anonymous"
-                  alt="" 
-                  className={`absolute inset-0 w-full h-full pointer-events-none select-none opacity-20 filter brightness-90 ${photoFit === 'cover' ? 'object-cover' : 'object-contain'}`}
+                  alt="Ultrazvuk" 
+                  onLoad={(e) => {
+                    const img = e.currentTarget;
+                    if (img.naturalWidth && img.naturalHeight) {
+                      setImgNaturalAspect(img.naturalWidth / img.naturalHeight);
+                    }
+                  }}
+                  className="absolute pointer-events-none select-none"
                   style={{
-                    transform: `scale(${parseFloat(photoScale) / 100}) translate(${photoX}%, ${photoY}%) rotate(${photoRotate}deg)`,
+                    position: 'absolute',
+                    left: '50%',
+                    top: '50%',
+                    width: imgNaturalAspect !== null ? (photoFit === 'cover' ? (imgNaturalAspect > photoContainerAspect ? 'auto' : '100%') : (imgNaturalAspect > photoContainerAspect ? '100%' : 'auto')) : '100%',
+                    height: imgNaturalAspect !== null ? (photoFit === 'cover' ? (imgNaturalAspect > photoContainerAspect ? '100%' : 'auto') : (imgNaturalAspect > photoContainerAspect ? 'auto' : '100%')) : '100%',
+                    transform: `translate(-50%, -50%) scale(${parseFloat(photoScale) / 100}) translate(${photoX}%, ${photoY}%) rotate(${photoRotate}deg)`,
                     transformOrigin: 'center center',
                     transition: activeDrag === 'photo' ? 'none' : 'transform 0.05s ease-out'
                   }}
                 />
- 
-                {/* Fully lit foreground layer clipped perfectly inside the container relative to its static frame coords */}
+
+                {/* Four crop masks that cover the outer parts with white */}
+                {/* Left Mask */}
+                <div 
+                  className="absolute left-0 top-0 bottom-0 pointer-events-none transition-all"
+                  style={{
+                    width: `${clipLeft}%`,
+                    backgroundColor: isExporting ? '#FFFFFF' : 'rgba(255, 255, 255, 0.75)'
+                  }}
+                />
+                {/* Right Mask */}
+                <div 
+                  className="absolute right-0 top-0 bottom-0 pointer-events-none transition-all"
+                  style={{
+                    width: `${clipRight}%`,
+                    backgroundColor: isExporting ? '#FFFFFF' : 'rgba(255, 255, 255, 0.75)'
+                  }}
+                />
+                {/* Top Mask */}
+                <div 
+                  className="absolute top-0 pointer-events-none transition-all"
+                  style={{
+                    left: `${clipLeft}%`,
+                    right: `${clipRight}%`,
+                    height: `${clipTop}%`,
+                    backgroundColor: isExporting ? '#FFFFFF' : 'rgba(255, 255, 255, 0.75)'
+                  }}
+                />
+                {/* Bottom Mask */}
+                <div 
+                  className="absolute bottom-0 pointer-events-none transition-all"
+                  style={{
+                    left: `${clipLeft}%`,
+                    right: `${clipRight}%`,
+                    height: `${clipBottom}%`,
+                    backgroundColor: isExporting ? '#FFFFFF' : 'rgba(255, 255, 255, 0.75)'
+                  }}
+                />
+
+                {/* Invisible crop box helper for rotation handle center calculation */}
                 <div 
                   id="ultrasound-photo-container"
-                  className="absolute overflow-hidden pointer-events-none select-none rounded-none"
+                  className="absolute pointer-events-none select-none border border-transparent"
                   style={{
                     left: `${clipLeft}%`,
                     right: `${clipRight}%`,
                     top: `${clipTop}%`,
                     bottom: `${clipBottom}%`
                   }}
-                >
-                  <div
-                    className="absolute pointer-events-none select-none"
-                    style={{
-                      left: `${innerLeftPct}%`,
-                      top: `${innerTopPct}%`,
-                      width: `${innerWidthPct}%`,
-                      height: `${innerHeightPct}%`
-                    }}
-                  >
-                    <img 
-                      src={image} 
-                      crossOrigin="anonymous"
-                      alt="Ultrazvuk" 
-                      className={`absolute pointer-events-none select-none ${photoFit === 'cover' ? 'object-cover' : 'object-contain'}`}
-                      style={{
-                        left: 0,
-                        top: 0,
-                        width: `${100 / scaleXMultiplier}%`,
-                        height: `${100 / scaleYMultiplier}%`,
-                        transform: `scale(${parseFloat(photoScale) / 100}) translate(${photoX}%, ${photoY}%) rotate(${photoRotate}deg)`,
-                        transformOrigin: 'center center',
-                        transition: activeDrag === 'photo' ? 'none' : 'transform 0.05s ease-out'
-                      }}
-                    />
-                  </div>
-                </div>
+                />
               </div>
 
               {/* Draggable text area situated below / right side of photo - elegant violet hover border, no speech bubble */}

@@ -3,6 +3,13 @@ export interface UploadedPhoto {
   url: string;
   name: string;
   quantity?: number; // For assigning multiple items to one photo
+  customFormat?: {
+    id: string;
+    name: string;
+    width: number;
+    height: number;
+    price: number;
+  };
 }
 
 export interface ProductVariant {
@@ -44,4 +51,3 @@ export interface CartItem {
   directMailing?: boolean; // New field for mailing service
   addresses?: string[]; // Multiple receiver addresses
 }
-

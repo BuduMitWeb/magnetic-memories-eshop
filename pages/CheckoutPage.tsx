@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
@@ -594,15 +593,15 @@ const CheckoutPage: React.FC = () => {
                                     <div className="flex-grow">
                                         <h3 className="font-black text-gray-900 leading-tight">{item.product.name}</h3>
                                         <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mt-1">
-                                            {item.variant?.name} • {item.quantity} ks
+                                            {item.photos.some(p => p.customFormat) ? 'Vlastní formát / rozměr' : item.variant?.name} • {item.quantity} ks
                                         </p>
                                         
-                                        {item.photos.some(p => p.quantity && p.quantity > 1) && (
+                                        {item.photos.some(p => (p.quantity && p.quantity > 1) || p.customFormat) && (
                                             <div className="mt-2 space-y-1">
                                                 {item.photos.map((photo, pIdx) => (
                                                     <div key={pIdx} className="text-[10px] text-gray-500 font-bold flex items-center gap-1.5">
                                                         <span className="w-1 h-1 rounded-full bg-brand-purple"></span>
-                                                        <span>Foto {pIdx + 1}: {photo.quantity || 1} ks</span>
+                                                        <span>Foto {pIdx + 1}: {photo.quantity || 1} ks {photo.customFormat ? `(${photo.customFormat.name})` : ''}</span>
                                                     </div>
                                                 ))}
                                             </div>

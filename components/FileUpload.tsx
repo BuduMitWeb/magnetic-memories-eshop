@@ -61,7 +61,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onUploadComplete, requir
     }
   }, [requiredCount, productName, isMagnet]);
 
-  const startUpload = async (files: (File | Blob)[], names?: string[]) => {
+  const startUpload = async (files: (File | Blob)[], names?: string[], formats?: any[]) => {
     setUploading(true);
     onUploadingChange?.(true);
     setProgress(5);
@@ -90,7 +90,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onUploadComplete, requir
         newUploadedPhotos.push({ 
           url: data.secure_url, 
           name: fileName,
-          quantity: 1
+          quantity: 1,
+          customFormat: formats ? formats[i] : undefined
         });
         setProgress(Math.round(((i + 1) / files.length) * 100));
       }
@@ -109,17 +110,20 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onUploadComplete, requir
 
   const [processedBlobs, setProcessedBlobs] = useState<Blob[]>([]);
   const [processedNames, setProcessedNames] = useState<string[]>([]);
+  const [processedFormats, setProcessedFormats] = useState<(any | undefined)[]>([]);
 
-  const handleEditorConfirm = (blob: Blob) => {
+  const handleEditorConfirm = (blob: Blob, customFormat?: any) => {
     const nextIndex = currentEditIndex + 1;
     const currentFileName = editingQueue[currentEditIndex].name;
     
     const newBlobs = [...processedBlobs, blob];
     const newNames = [...processedNames, currentFileName];
+    const newFormats = [...processedFormats, customFormat];
 
     if (nextIndex < editingQueue.length) {
       setProcessedBlobs(newBlobs);
       setProcessedNames(newNames);
+      setProcessedFormats(newFormats);
       setCurrentEditIndex(nextIndex);
       const reader = new FileReader();
       reader.onload = (ev) => setCurrentEditImage(ev.target?.result as string);
@@ -128,10 +132,11 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onUploadComplete, requir
       // Last one edited, start upload
       setProcessedBlobs([]);
       setProcessedNames([]);
+      setProcessedFormats([]);
       setCurrentEditIndex(-1);
       setCurrentEditImage(null);
       setEditingQueue([]);
-      startUpload(newBlobs, newNames);
+      startUpload(newBlobs, newNames, newFormats);
     }
   };
 
@@ -141,6 +146,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onUploadComplete, requir
     setEditingQueue([]);
     setProcessedBlobs([]);
     setProcessedNames([]);
+    setProcessedFormats([]);
   };
 
   const updatePhotoQuantity = (index: number, newQty: number) => {

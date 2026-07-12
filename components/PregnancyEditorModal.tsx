@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import html2canvas from 'html2canvas';
 
 interface PregnancyEditorModalProps {
@@ -116,37 +116,107 @@ export const PregnancyEditorModal: React.FC<PregnancyEditorModalProps> = ({
     : (windowWidth < 480 ? 280 : windowWidth < 640 ? 350 : 420);
   const cardHeight = Math.round(cardWidth / cardAspect);
 
-  const photoContainerRef = useRef<HTMLDivElement>(null);
-  const [photoContainerAspect, setPhotoContainerAspect] = useState<number>(1);
-  const [imgNaturalAspect, setImgNaturalAspect] = useState<number | null>(null);
+  const baseWidth = orientation === 'portrait' ? 350 : Math.round(350 * cardAspect);
 
-  useEffect(() => {
-    if (photoContainerRef.current) {
-      const rect = photoContainerRef.current.getBoundingClientRect();
-      if (rect.width && rect.height) {
-        setPhotoContainerAspect(rect.width / rect.height);
-      }
-    }
-  }, [orientation, windowWidth, clipLeft, clipRight, clipTop, clipBottom]);
+  // Keep the card dimensions absolutely identical during editing and exporting
+  // to avoid any layout, scale, or coordinate shifts. What you see is exactly what is saved.
+  // We render the card at the exact visible cardWidth / cardHeight in the DOM.
+  // No CSS scale transforms are used. When exporting, html2canvas takes a perfect snapshot of this exact element.
+  const currentCardWidth = cardWidth;
+  const currentCardHeight = cardHeight;
+
+  // The scale multiplier for fonts and absolute coordinate alignments relative to the base dimensions.
+  const scaleMultiplier = currentCardWidth / baseWidth;
+
+  // A6 aspect ratio is ~0.71
+  const isA6 = cardAspect >= 0.70;
+  // Reduce photo height for portrait orientation to give text blocks generous, safe spacing from the bottom edge
+  const photoHeightFactor = orientation === 'portrait' ? (isA6 ? 0.67 : 0.71) : 0.92;
+  const photoHeightPercent = orientation === 'portrait' ? (isA6 ? '67%' : '71%') : '92%';
+
+  const photoContainerAspect = orientation === 'portrait'
+    ? (0.92 * currentCardWidth) / (photoHeightFactor * currentCardHeight)
+    : (0.64 * currentCardWidth) / (0.92 * currentCardHeight);
+
+  const [imgNaturalAspect, setImgNaturalAspect] = useState<number | null>(null);
 
   const handleSave = async () => {
     setIsExporting(true);
+    // Allow React state changes to complete and the DOM to stabilize
+    await new Promise((resolve) => setTimeout(resolve, 150));
+
     try {
       const cardEl = document.getElementById('pregnancy-preview-card');
       if (!cardEl) {
         throw new Error('Chyba: Náhledová karta nebyla nalezena.');
       }
 
-      // Render the card using html2canvas
-      const canvas = await html2canvas(cardEl, {
+      // Create a clean, off-screen container situated using absolute position at the current scroll position.
+      // This completely eliminates viewport clipping on any screen resolution and ensures no black strips or scroll-offset issues!
+      const container = document.createElement('div');
+      container.style.position = 'absolute';
+      container.style.top = `${window.scrollY}px`;
+      container.style.left = `${window.scrollX}px`;
+      container.style.width = `${cardEl.offsetWidth}px`;
+      container.style.height = `${cardEl.offsetHeight}px`;
+      container.style.overflow = 'hidden';
+      container.style.zIndex = '-9999'; // Send completely to the back
+      container.style.opacity = '0.99'; // Force browser layout rendering
+      document.body.appendChild(container);
+
+      // Clone the card element and reset positioning/margin/boxShadow
+      // We set the border color to transparent rather than removing the border entirely.
+      // This preserves 100% pixel-perfect dimensions, preventing layout/coordinate/text-shifting shifts during export!
+      const clone = cardEl.cloneNode(true) as HTMLDivElement;
+      clone.style.position = 'absolute';
+      clone.style.top = '0px';
+      clone.style.left = '0px';
+      clone.style.margin = '0px';
+      clone.style.boxShadow = 'none';
+      clone.style.borderColor = 'transparent';
+      clone.style.transform = 'none';
+      clone.style.transition = 'none';
+      clone.style.animation = 'none';
+
+      // Recursively disable all CSS transitions/animations on all descendants to secure stable export position
+      const clonedDescendants = clone.querySelectorAll('*');
+      clonedDescendants.forEach((desc) => {
+        if (desc instanceof HTMLElement) {
+          desc.style.transition = 'none';
+          desc.style.animation = 'none';
+        }
+      });
+      
+      container.appendChild(clone);
+
+      // Force a synchronous reflow to ensure custom text/font styling is evaluated immediately
+      void clone.offsetHeight;
+
+      // Ensure that all custom Google fonts are completely loaded before taking screenshot
+      if (typeof document !== 'undefined' && document.fonts) {
+        await document.fonts.ready;
+      }
+
+      // Wait two frames to allow full subpixel layout rendering and CSS calculation of fonts and layout classes
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+      // Render the off-screen clone with html2canvas.
+      const canvas = await html2canvas(clone, {
         useCORS: true,
         allowTaint: false,
         scale: 4, // Super crisp high resolution for prints
         backgroundColor: '#FFFFFF',
-        scrollX: window.scrollX,
-        scrollY: window.scrollY,
+        scrollX: 0,
+        scrollY: 0,
+        x: 0,
+        y: 0,
+        width: cardEl.offsetWidth,
+        height: cardEl.offsetHeight,
         logging: false,
       });
+
+      // Clean up the temporary DOM nodes
+      document.body.removeChild(container);
 
       const blob = await new Promise<Blob | null>((resolve) => {
         canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.95);
@@ -311,16 +381,19 @@ export const PregnancyEditorModal: React.FC<PregnancyEditorModalProps> = ({
     const dy = clientY - dragStart.y;
 
     if (activeDrag === 'photo') {
-      const multiplier = 0.35 / (parseFloat(photoScale || '100') / 100);
+      const multiplier = (0.35 / (parseFloat(photoScale || '100') / 100)) / scaleMultiplier;
       const nextX = dragStart.photoX + dx * multiplier;
       const nextY = dragStart.photoY + dy * multiplier;
       setPhotoX(String(parseFloat(nextX.toFixed(1))));
       setPhotoY(String(parseFloat(nextY.toFixed(1))));
     } else if (activeDrag === 'text') {
-      const nextX = dragStart.photoX + dx;
-      const nextY = dragStart.photoY + dy;
-      setTextX(Math.round(nextX));
-      setTextY(Math.round(nextY));
+      const nextX = dragStart.photoX + dx / scaleMultiplier;
+      const nextY = dragStart.photoY + dy / scaleMultiplier;
+      // Clamp values to prevent text from being dragged off the card margins
+      const clampedX = Math.max(-100, Math.min(100, nextX));
+      const clampedY = Math.max(-120, Math.min(4, nextY));
+      setTextX(Math.round(clampedX));
+      setTextY(Math.round(clampedY));
     } else if (activeDrag === 'rotate') {
       const cx = dragStart.photoX; // Center of photo viewport
       const cy = dragStart.photoY;
@@ -439,28 +512,35 @@ export const PregnancyEditorModal: React.FC<PregnancyEditorModalProps> = ({
             {/* LEFT COLUMN: Live Card Preview */}
             <div className="lg:col-span-5 flex flex-col items-center justify-center bg-white p-4 sm:p-6 rounded-2xl border border-gray-100 shadow-sm lg:sticky lg:top-4 z-10">
             <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-3">
-              Živý náhled magnetu ({sizeLabel || '10x15 cm'})
+              Živý náhled magnetu ({sizeLabel || 'A6'})
             </span>
 
             {/* Simulated magnetic card with correct dynamic portrait/landscape ratio */}
             <div 
               id="pregnancy-preview-card"
-              className={`bg-white border border-gray-200 shadow-lg relative flex overflow-hidden select-none rounded-none transition-all ${
-                orientation === 'portrait' ? 'flex-col justify-between p-4' : 'flex-row items-center p-3'
-              }`}
+              className="bg-white relative overflow-hidden select-none rounded-none mx-auto shadow-xl border border-gray-200"
               style={{ 
-                width: `${cardWidth}px`,
-                height: `${cardHeight}px`,
-                border: '1px solid #e5e7eb'
+                width: `${currentCardWidth}px`,
+                height: `${currentCardHeight}px`,
               }}
             >
               
-              {/* Photo Area Container with overflow-visible to support handles outside the edges */}
+              {/* Photo Area Container with absolute percentage boundaries for 100% deterministic layout */}
               <div 
-                ref={photoContainerRef}
-                className={`relative overflow-visible bg-white rounded-none border border-transparent ${
-                  orientation === 'portrait' ? 'w-full flex-grow min-h-0 mb-3' : 'h-full flex-grow min-w-0 mr-3'
-                }`}
+                className="absolute bg-white rounded-none border border-transparent"
+                style={orientation === 'portrait' ? {
+                  top: '4%',
+                  left: '4%',
+                  right: '4%',
+                  height: photoHeightPercent,
+                  overflow: 'visible'
+                } : {
+                  top: '4%',
+                  bottom: '4%',
+                  left: '4%',
+                  width: '64%',
+                  overflow: 'visible'
+                }}
               >
                 
                 {/* Visual crop border (Fialový ořezávací rámeček), moving dynamically with crop values */}
@@ -563,67 +643,50 @@ export const PregnancyEditorModal: React.FC<PregnancyEditorModalProps> = ({
                   title="Chytit a táhnout pro posun fotky uvnitř rámečku"
                 />
  
-                {/* Fully lit underlying image layer */}
-                <img 
-                  src={image} 
-                  crossOrigin="anonymous"
-                  alt="Ultrazvuk" 
-                  onLoad={(e) => {
-                    const img = e.currentTarget;
-                    if (img.naturalWidth && img.naturalHeight) {
-                      setImgNaturalAspect(img.naturalWidth / img.naturalHeight);
-                    }
-                  }}
-                  className="absolute pointer-events-none select-none"
+                {/* Crop Viewport: Physically clips the image and background to the cropped area */}
+                <div 
+                  className="absolute overflow-hidden bg-white rounded-none"
                   style={{
+                    left: `${clipLeft}%`,
+                    right: `${clipRight}%`,
+                    top: `${clipTop}%`,
+                    bottom: `${clipBottom}%`
+                  }}
+                >
+                  {/* Mock wrapper aligning with the full photo container */}
+                  <div style={{
                     position: 'absolute',
-                    left: '50%',
-                    top: '50%',
-                    width: imgNaturalAspect !== null ? (photoFit === 'cover' ? (imgNaturalAspect > photoContainerAspect ? 'auto' : '100%') : (imgNaturalAspect > photoContainerAspect ? '100%' : 'auto')) : '100%',
-                    height: imgNaturalAspect !== null ? (photoFit === 'cover' ? (imgNaturalAspect > photoContainerAspect ? '100%' : 'auto') : (imgNaturalAspect > photoContainerAspect ? 'auto' : '100%')) : '100%',
-                    transform: `translate(-50%, -50%) scale(${parseFloat(photoScale) / 100}) translate(${photoX}%, ${photoY}%) rotate(${photoRotate}deg)`,
-                    transformOrigin: 'center center',
-                    transition: activeDrag === 'photo' ? 'none' : 'transform 0.05s ease-out'
-                  }}
-                />
-
-                {/* Four crop masks that cover the outer parts with white */}
-                {/* Left Mask */}
-                <div 
-                  className="absolute left-0 top-0 bottom-0 pointer-events-none transition-all"
-                  style={{
-                    width: `${clipLeft}%`,
-                    backgroundColor: isExporting ? '#FFFFFF' : 'rgba(255, 255, 255, 0.75)'
-                  }}
-                />
-                {/* Right Mask */}
-                <div 
-                  className="absolute right-0 top-0 bottom-0 pointer-events-none transition-all"
-                  style={{
-                    width: `${clipRight}%`,
-                    backgroundColor: isExporting ? '#FFFFFF' : 'rgba(255, 255, 255, 0.75)'
-                  }}
-                />
-                {/* Top Mask */}
-                <div 
-                  className="absolute top-0 pointer-events-none transition-all"
-                  style={{
-                    left: `${clipLeft}%`,
-                    right: `${clipRight}%`,
-                    height: `${clipTop}%`,
-                    backgroundColor: isExporting ? '#FFFFFF' : 'rgba(255, 255, 255, 0.75)'
-                  }}
-                />
-                {/* Bottom Mask */}
-                <div 
-                  className="absolute bottom-0 pointer-events-none transition-all"
-                  style={{
-                    left: `${clipLeft}%`,
-                    right: `${clipRight}%`,
-                    height: `${clipBottom}%`,
-                    backgroundColor: isExporting ? '#FFFFFF' : 'rgba(255, 255, 255, 0.75)'
-                  }}
-                />
+                    left: `${-clipLeft * 100 / Math.max(1, 100 - clipLeft - clipRight)}%`,
+                    top: `${-clipTop * 100 / Math.max(1, 100 - clipTop - clipBottom)}%`,
+                    width: `${100 * 100 / Math.max(1, 100 - clipLeft - clipRight)}%`,
+                    height: `${100 * 100 / Math.max(1, 100 - clipTop - clipBottom)}%`,
+                    pointerEvents: 'none'
+                  }}>
+                    {/* Fully lit underlying image layer */}
+                    <img 
+                      src={image} 
+                      crossOrigin="anonymous"
+                      alt="Ultrazvuk" 
+                      onLoad={(e) => {
+                         const img = e.currentTarget;
+                         if (img.naturalWidth && img.naturalHeight) {
+                           setImgNaturalAspect(img.naturalWidth / img.naturalHeight);
+                         }
+                      }}
+                      className="absolute pointer-events-none select-none"
+                      style={{
+                        position: 'absolute',
+                        left: '50%',
+                        top: '50%',
+                        width: imgNaturalAspect !== null ? (photoFit === 'cover' ? (imgNaturalAspect > photoContainerAspect ? 'auto' : '100%') : (imgNaturalAspect > photoContainerAspect ? '100%' : 'auto')) : '100%',
+                        height: imgNaturalAspect !== null ? (photoFit === 'cover' ? (imgNaturalAspect > photoContainerAspect ? '100%' : 'auto') : (imgNaturalAspect > photoContainerAspect ? 'auto' : '100%')) : '100%',
+                        transform: `translate(-50%, -50%) scale(${parseFloat(photoScale) / 100}) translate(${photoX}%, ${photoY}%) rotate(${photoRotate}deg)`,
+                        transformOrigin: 'center center',
+                        transition: activeDrag === 'photo' ? 'none' : 'transform 0.05s ease-out'
+                      }}
+                    />
+                  </div>
+                </div>
 
                 {/* Invisible crop box helper for rotation handle center calculation */}
                 <div 
@@ -638,37 +701,53 @@ export const PregnancyEditorModal: React.FC<PregnancyEditorModalProps> = ({
                 />
               </div>
 
-              {/* Draggable text area situated below / right side of photo - elegant violet hover border, no speech bubble */}
-              <div 
-                className={`flex flex-col items-center justify-center text-center cursor-move p-2 border border-dashed border-transparent hover:border-brand-purple hover:bg-brand-purple/[0.03] rounded-xl group transition-all select-none relative shrink-0 ${
-                  orientation === 'portrait' ? 'w-full py-2' : 'w-[35%] h-full py-1 px-1 justify-center'
-                }`}
-                style={{
-                  transform: `translate(${textX}px, ${textY}px)`,
-                  fontFamily: currentFontObj.fontStyle,
-                  color: color,
-                  userSelect: 'none',
-                  transition: activeDrag === 'text' ? 'none' : 'transform 0.1s ease-out'
+              {/* Dedicated container for text area to completely eliminate html2canvas center/shift alignment bugs */}
+              <div
+                className="absolute flex flex-col items-center justify-center text-center pointer-events-none"
+                style={orientation === 'portrait' ? {
+                  top: isA6 ? '73%' : '77%',
+                  bottom: '4%',
+                  left: '4%',
+                  right: '4%',
+                } : {
+                  top: '4%',
+                  bottom: '4%',
+                  right: '4%',
+                  width: '28%',
                 }}
-                onMouseDown={handleTextDragStart}
-                onTouchStart={handleTextDragStart}
-                title="Chytit a přetáhnout text"
               >
                 <div 
+                  className="relative text-center cursor-move p-2 border border-dashed border-transparent hover:border-brand-purple hover:bg-brand-purple/[0.03] rounded-xl group transition-all select-none pointer-events-auto"
                   style={{
-                    fontSize: `${getBaseFontSize('t1') * (textScale / 100)}px`
+                    top: `${textY * scaleMultiplier}px`,
+                    left: `${textX * scaleMultiplier}px`,
+                    fontFamily: currentFontObj.fontStyle,
+                    color: color,
+                    userSelect: 'none',
+                    transition: activeDrag === 'text' ? 'none' : 'top 0.1s ease-out, left 0.1s ease-out'
                   }}
-                  className="font-medium tracking-tight break-words px-1 leading-tight transition-all"
+                  onMouseDown={handleTextDragStart}
+                  onTouchStart={handleTextDragStart}
+                  title="Chytit a přetáhnout text"
                 >
-                  {text1 || 'Budeme tři...'}
-                </div>
-                <div 
-                  style={{
-                    fontSize: `${getBaseFontSize('t2') * (textScale / 100)}px`
-                  }}
-                  className="break-words mt-1 opacity-90 leading-tight transition-all"
-                >
-                  {text2 || 'podzim 2026'}
+                  <div 
+                    style={{
+                      fontSize: `${getBaseFontSize('t1') * (textScale / 100) * scaleMultiplier}px`,
+                      lineHeight: '1.2'
+                    }}
+                    className="font-medium tracking-tight break-words px-1 transition-all"
+                  >
+                    {text1 || 'Budeme tři...'}
+                  </div>
+                  <div 
+                    style={{
+                      fontSize: `${getBaseFontSize('t2') * (textScale / 100) * scaleMultiplier}px`,
+                      lineHeight: '1.2'
+                    }}
+                    className="break-words mt-1 opacity-90 transition-all"
+                  >
+                    {text2 || 'podzim 2026'}
+                  </div>
                 </div>
               </div>
 

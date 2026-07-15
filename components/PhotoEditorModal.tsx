@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import html2canvas from 'html2canvas';
 
 interface PhotoEditorModalProps {
@@ -152,6 +152,16 @@ export const PhotoEditorModal: React.FC<PhotoEditorModalProps> = ({
   const [photoX, setPhotoX] = useState<number>(0);
   const [photoY, setPhotoY] = useState<number>(0);
   const [imgNaturalAspect, setImgNaturalAspect] = useState<number | null>(null);
+  const imageRef = useRef<HTMLImageElement | null>(null);
+
+  useEffect(() => {
+    if (imageRef.current) {
+      const img = imageRef.current;
+      if (img.complete && img.naturalWidth && img.naturalHeight) {
+        setImgNaturalAspect(img.naturalWidth / img.naturalHeight);
+      }
+    }
+  }, [image]);
 
   // Text capabilities
   const [hasText, setHasText] = useState<boolean>(false);
@@ -244,6 +254,22 @@ export const PhotoEditorModal: React.FC<PhotoEditorModalProps> = ({
       // We set the border color to transparent rather than removing the border entirely.
       // This preserves 100% pixel-perfect dimensions, preventing layout/coordinate/text-shifting shifts during export!
       const clone = renderEl.cloneNode(true) as HTMLDivElement;
+      
+      // Fix auto width/height image rendering bugs in html2canvas by copying calculated layout dimensions from the original rendered elements
+      const originalImgs = renderEl.querySelectorAll('img');
+      const clonedImgs = clone.querySelectorAll('img');
+      originalImgs.forEach((orig, idx) => {
+        const cloned = clonedImgs[idx] as HTMLImageElement | undefined;
+        if (cloned) {
+          const w = orig.offsetWidth;
+          const h = orig.offsetHeight;
+          if (w > 0 && h > 0) {
+            cloned.style.width = `${w}px`;
+            cloned.style.height = `${h}px`;
+          }
+        }
+      });
+
       clone.style.position = 'absolute';
       clone.style.top = '0px';
       clone.style.left = '0px';
@@ -378,6 +404,7 @@ export const PhotoEditorModal: React.FC<PhotoEditorModalProps> = ({
                 {/* Photo viewport within the Polaroid borders or taking 100% */}
                 <div className="w-full h-full relative overflow-hidden pointer-events-none rounded-[2px]" style={{ zIndex: 1 }}>
                   <img
+                    ref={imageRef}
                     src={image}
                     alt="Upravovaný motiv"
                     crossOrigin="anonymous"
@@ -392,7 +419,9 @@ export const PhotoEditorModal: React.FC<PhotoEditorModalProps> = ({
                       left: '50%',
                       top: '50%',
                       width: imgNaturalAspect !== null ? (imgNaturalAspect > editorAspect ? 'auto' : '100%') : '100%',
-                      height: imgNaturalAspect !== null ? (imgNaturalAspect > editorAspect ? '100%' : 'auto') : '100%',
+                      height: imgNaturalAspect !== null ? (imgNaturalAspect > editorAspect ? '100%' : 'auto') : 'auto',
+                      maxWidth: 'none',
+                      maxHeight: 'none',
                       transform: `translate(-50%, -50%) scale(${photoScale / 100}) translate(${photoX}%, ${photoY}%) rotate(${photoRotate}deg)`,
                       transformOrigin: 'center center',
                       transition: isDragging ? 'none' : 'transform 0.15s ease-out'

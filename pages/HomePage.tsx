@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { useProducts } from '../context/ProductContext';
 import { HOW_IT_WORKS_STEPS } from '../constants';
@@ -51,8 +51,6 @@ const buttonStyles = [
 const HomePage: React.FC = () => {
     const { products } = useProducts();
     const iconColors = ['bg-brand-cyan', 'bg-brand-purple', 'bg-brand-pink', 'bg-brand-orange'];
-    const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
-    const [openHowItWorksFaqIndex, setOpenHowItWorksFaqIndex] = useState<number | null>(null);
 
     return (
         <>
@@ -157,124 +155,6 @@ const HomePage: React.FC = () => {
                                  <p className="mt-2 text-base text-black font-light">{step.description}</p>
                              </div>
                         ))}
-                    </div>
-
-                    {/* Integrated FAQ Accordion */}
-                    <div className="mt-20 max-w-4xl mx-auto pt-16 border-t border-gray-100">
-                        <div className="text-center mb-10">
-                            <span className="text-xs font-semibold text-brand-purple uppercase tracking-widest bg-brand-purple/5 px-2.5 py-1 rounded-full">Rychlé odpovědi</span>
-                            <h3 className="text-xl font-extrabold text-gray-900 tracking-tight sm:text-2xl mt-3 font-sans">
-                                Často kladené otázky k nákupu a výrobě
-                            </h3>
-                            <p className="mt-2 text-sm text-gray-500 font-medium">
-                                Vše, co potřebujete vědět o výrobě fotomagnetek na lednici a doručení.
-                            </p>
-                        </div>
-
-                        <div className="space-y-3">
-                            {HOMEPAGE_FAQ.map((faq, index) => {
-                                const isOpen = openHowItWorksFaqIndex === index;
-                                return (
-                                    <div 
-                                        key={index} 
-                                        className={`bg-white rounded-xl border transition-all duration-300 ${isOpen ? 'border-brand-purple/40 shadow-sm' : 'border-gray-100 hover:border-gray-200/80'}`}
-                                    >
-                                        <button
-                                            onClick={() => setOpenHowItWorksFaqIndex(isOpen ? null : index)}
-                                            className="w-full py-4 px-5 flex justify-between items-center text-left focus:outline-none"
-                                            aria-expanded={isOpen}
-                                        >
-                                            <span className="font-semibold text-gray-800 text-sm sm:text-base pr-4 font-sans leading-snug">
-                                                {faq.question}
-                                            </span>
-                                            <span className="flex-shrink-0 ml-2">
-                                                {isOpen ? (
-                                                    <div className="w-7 h-7 rounded-full bg-brand-purple/10 flex items-center justify-center text-brand-purple">
-                                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M20 12H4" />
-                                                        </svg>
-                                                    </div>
-                                                ) : (
-                                                    <div className="w-7 h-7 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-gray-100">
-                                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
-                                                        </svg>
-                                                    </div>
-                                                )}
-                                            </span>
-                                        </button>
-                                        
-                                        <div 
-                                            className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'max-h-72 opacity-100' : 'max-h-0 opacity-0'}`}
-                                        >
-                                            <div className="px-5 pb-5 text-gray-600 text-sm leading-relaxed border-t border-gray-50 pt-3.5 font-normal">
-                                                {faq.answer}
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            {/* SEO Collapsible FAQ Accordion Section */}
-            <section className="py-16 sm:py-20 bg-gradient-to-b from-white to-gray-50 border-t border-gray-100">
-                <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="text-center mb-10">
-                        <span className="text-xs font-semibold text-brand-purple uppercase tracking-widest bg-brand-purple/5 px-3 py-1.5 rounded-full">Odpovídáme na vaše dotazy</span>
-                        <h2 className="text-2xl font-extrabold text-gray-900 tracking-tight sm:text-3xl mt-3 font-sans">
-                            Často kladené otázky (FAQ)
-                        </h2>
-                        <p className="mt-2 text-base text-gray-500 font-normal">
-                            Vše, co potřebujete vědět o výrobě fotomagnetek na lednici a doručení.
-                        </p>
-                    </div>
-
-                    <div className="space-y-3">
-                        {HOMEPAGE_FAQ.map((faq, index) => {
-                            const isOpen = openFaqIndex === index;
-                            return (
-                                <div 
-                                    key={index} 
-                                    className={`bg-white rounded-xl border transition-all duration-300 ${isOpen ? 'border-brand-purple/40 shadow-sm' : 'border-gray-100 hover:border-gray-200/80'}`}
-                                >
-                                    <button
-                                        onClick={() => setOpenFaqIndex(isOpen ? null : index)}
-                                        className="w-full py-4 px-5 flex justify-between items-center text-left focus:outline-none"
-                                        aria-expanded={isOpen}
-                                    >
-                                        <span className="font-semibold text-gray-800 text-sm sm:text-base pr-4 font-sans leading-snug">
-                                            {faq.question}
-                                        </span>
-                                        <span className="flex-shrink-0 ml-2">
-                                            {isOpen ? (
-                                                <div className="w-7 h-7 rounded-full bg-brand-purple/10 flex items-center justify-center text-brand-purple">
-                                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M20 12H4" />
-                                                    </svg>
-                                                </div>
-                                            ) : (
-                                                <div className="w-7 h-7 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-gray-100">
-                                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
-                                                    </svg>
-                                                </div>
-                                            )}
-                                        </span>
-                                    </button>
-                                    
-                                    <div 
-                                        className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'max-h-72 opacity-100' : 'max-h-0 opacity-0'}`}
-                                    >
-                                        <div className="px-5 pb-5 text-gray-600 text-sm leading-relaxed border-t border-gray-50 pt-3.5 font-normal">
-                                            {faq.answer}
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
                     </div>
                 </div>
             </section>

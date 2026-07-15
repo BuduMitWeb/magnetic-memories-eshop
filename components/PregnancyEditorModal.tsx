@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import html2canvas from 'html2canvas';
 
 interface PregnancyEditorModalProps {
@@ -139,6 +139,16 @@ export const PregnancyEditorModal: React.FC<PregnancyEditorModalProps> = ({
     : (0.64 * currentCardWidth) / (0.92 * currentCardHeight);
 
   const [imgNaturalAspect, setImgNaturalAspect] = useState<number | null>(null);
+  const imageRef = useRef<HTMLImageElement | null>(null);
+
+  useEffect(() => {
+    if (imageRef.current) {
+      const img = imageRef.current;
+      if (img.complete && img.naturalWidth && img.naturalHeight) {
+        setImgNaturalAspect(img.naturalWidth / img.naturalHeight);
+      }
+    }
+  }, [image]);
 
   const handleSave = async () => {
     setIsExporting(true);
@@ -168,6 +178,22 @@ export const PregnancyEditorModal: React.FC<PregnancyEditorModalProps> = ({
       // We set the border color to transparent rather than removing the border entirely.
       // This preserves 100% pixel-perfect dimensions, preventing layout/coordinate/text-shifting shifts during export!
       const clone = cardEl.cloneNode(true) as HTMLDivElement;
+      
+      // Fix auto width/height image rendering bugs in html2canvas by copying calculated layout dimensions from the original rendered elements
+      const originalImgs = cardEl.querySelectorAll('img');
+      const clonedImgs = clone.querySelectorAll('img');
+      originalImgs.forEach((orig, idx) => {
+        const cloned = clonedImgs[idx] as HTMLImageElement | undefined;
+        if (cloned) {
+          const w = orig.offsetWidth;
+          const h = orig.offsetHeight;
+          if (w > 0 && h > 0) {
+            cloned.style.width = `${w}px`;
+            cloned.style.height = `${h}px`;
+          }
+        }
+      });
+
       clone.style.position = 'absolute';
       clone.style.top = '0px';
       clone.style.left = '0px';
@@ -506,12 +532,12 @@ export const PregnancyEditorModal: React.FC<PregnancyEditorModalProps> = ({
         </div>
 
         {/* Content Body */}
-        <div className="flex-grow overflow-y-auto p-4 sm:p-6 bg-gray-50/50">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start max-w-6xl mx-auto">
+        <div className="flex-grow overflow-y-auto p-4 pt-3 pb-2 sm:px-6 sm:pt-4 sm:pb-2 bg-gray-50/50">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start max-w-6xl mx-auto">
             
             {/* LEFT COLUMN: Live Card Preview */}
-            <div className="lg:col-span-5 flex flex-col items-center justify-center bg-white p-4 sm:p-6 rounded-2xl border border-gray-100 shadow-sm lg:sticky lg:top-4 z-10">
-            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-3">
+            <div className="lg:col-span-5 lg:self-start flex flex-col items-center justify-start bg-white p-4 sm:p-5 rounded-2xl border border-gray-100 shadow-sm lg:sticky lg:top-4 z-10">
+            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-2.5">
               Živý náhled magnetu ({sizeLabel || 'A6'})
             </span>
 
@@ -664,6 +690,7 @@ export const PregnancyEditorModal: React.FC<PregnancyEditorModalProps> = ({
                   }}>
                     {/* Fully lit underlying image layer */}
                     <img 
+                      ref={imageRef}
                       src={image} 
                       crossOrigin="anonymous"
                       alt="Ultrazvuk" 
@@ -679,7 +706,9 @@ export const PregnancyEditorModal: React.FC<PregnancyEditorModalProps> = ({
                         left: '50%',
                         top: '50%',
                         width: imgNaturalAspect !== null ? (photoFit === 'cover' ? (imgNaturalAspect > photoContainerAspect ? 'auto' : '100%') : (imgNaturalAspect > photoContainerAspect ? '100%' : 'auto')) : '100%',
-                        height: imgNaturalAspect !== null ? (photoFit === 'cover' ? (imgNaturalAspect > photoContainerAspect ? '100%' : 'auto') : (imgNaturalAspect > photoContainerAspect ? 'auto' : '100%')) : '100%',
+                        height: imgNaturalAspect !== null ? (photoFit === 'cover' ? (imgNaturalAspect > photoContainerAspect ? '100%' : 'auto') : (imgNaturalAspect > photoContainerAspect ? 'auto' : '100%')) : 'auto',
+                        maxWidth: 'none',
+                        maxHeight: 'none',
                         transform: `translate(-50%, -50%) scale(${parseFloat(photoScale) / 100}) translate(${photoX}%, ${photoY}%) rotate(${photoRotate}deg)`,
                         transformOrigin: 'center center',
                         transition: activeDrag === 'photo' ? 'none' : 'transform 0.05s ease-out'
@@ -706,12 +735,12 @@ export const PregnancyEditorModal: React.FC<PregnancyEditorModalProps> = ({
                 className="absolute flex flex-col items-center justify-center text-center pointer-events-none"
                 style={orientation === 'portrait' ? {
                   top: isA6 ? '73%' : '77%',
-                  bottom: '4%',
+                  bottom: isExporting ? '4%' : '0%',
                   left: '4%',
                   right: '4%',
                 } : {
                   top: '4%',
-                  bottom: '4%',
+                  bottom: isExporting ? '4%' : '0%',
                   right: '4%',
                   width: '28%',
                 }}
@@ -753,13 +782,13 @@ export const PregnancyEditorModal: React.FC<PregnancyEditorModalProps> = ({
 
             </div>
 
-            <p className="mt-4 text-[10px] font-medium text-gray-400 text-center leading-normal max-w-xs">
+            <p className="mt-2.5 text-[10px] font-medium text-gray-400 text-center leading-normal max-w-xs">
               Materiál: Ohebná magnetická fólie s fotopapírem, ručně střižená.
             </p>
           </div>
 
           {/* RIGHT COLUMN: Settings Form Grid */}
-          <div className="lg:col-span-7 bg-white p-4 sm:p-6 rounded-2xl border border-gray-100 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+          <div className="lg:col-span-7 bg-white p-4 sm:p-5 rounded-2xl border border-gray-100 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
             
             {/* COLUMN 1: Layout, Text & Font Selectors */}
             <div className="space-y-5">

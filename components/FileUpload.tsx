@@ -31,6 +31,69 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onUploadComplete, requir
   const isMerch = productName.toLowerCase().includes('merch');
   const isMagnet = (productName.toLowerCase().includes('magnet') && !productName.toLowerCase().includes('těhoten')) || isMerch;
 
+  const compressImage = (file: File): Promise<File> => {
+    return new Promise((resolve) => {
+      // If image is less than 2MB, no compression is necessary
+      if (file.size <= 2 * 1024 * 1024) {
+        resolve(file);
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          // Max dimension 2500px to ensure crisp, print-ready detail but smaller file size
+          const MAX_DIM = 2500;
+          if (width > MAX_DIM || height > MAX_DIM) {
+            if (width > height) {
+              height = Math.round((height * MAX_DIM) / width);
+              width = MAX_DIM;
+            } else {
+              width = Math.round((width * MAX_DIM) / height);
+              height = MAX_DIM;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(file);
+            return;
+          }
+
+          ctx.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) {
+                resolve(file);
+                return;
+              }
+              const compressedFile = new File([blob], file.name, {
+                type: 'image/jpeg',
+                lastModified: Date.now(),
+              });
+              resolve(compressedFile);
+            },
+            'image/jpeg',
+            0.85
+          );
+        };
+        img.onerror = () => resolve(file);
+        img.src = event.target?.result as string;
+      };
+      reader.onerror = () => resolve(file);
+      reader.readAsDataURL(file);
+    });
+  };
+
   useEffect(() => {
     if (currentPhotos) {
       setInternalPhotos(currentPhotos);
@@ -46,20 +109,40 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onUploadComplete, requir
       return;
     }
 
+    setUploading(true);
+    onUploadingChange?.(true);
+    setProgress(5);
+
     const fileList = Array.from(files);
     
-    // For magnets, we want to edit every photo
+    // Compress large images first
+    const compressedList: File[] = [];
+    for (let i = 0; i < fileList.length; i++) {
+      try {
+        const comp = await compressImage(fileList[i]);
+        compressedList.push(comp);
+      } catch (err) {
+        compressedList.push(fileList[i]); // Fallback to original
+      }
+    }
+
+    // Now proceed with compressed files
     if (isMagnet) {
-      setEditingQueue(fileList);
+      setEditingQueue(compressedList);
       setCurrentEditIndex(0);
       const reader = new FileReader();
-      reader.onload = (ev) => setCurrentEditImage(ev.target?.result as string);
-      reader.readAsDataURL(fileList[0]);
+      reader.onload = (ev) => {
+        setCurrentEditImage(ev.target?.result as string);
+        setUploading(false);
+        onUploadingChange?.(false);
+        setProgress(0);
+      };
+      reader.readAsDataURL(compressedList[0]);
     } else {
       // Normal upload flow
-      startUpload(fileList);
+      startUpload(compressedList);
     }
-  }, [requiredCount, productName, isMagnet]);
+  }, [requiredCount, productName, isMagnet, onUploadingChange]);
 
   const startUpload = async (files: (File | Blob)[], names?: string[], formats?: any[]) => {
     setUploading(true);

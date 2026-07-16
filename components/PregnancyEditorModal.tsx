@@ -239,6 +239,25 @@ export const PregnancyEditorModal: React.FC<PregnancyEditorModalProps> = ({
         width: cardEl.offsetWidth,
         height: cardEl.offsetHeight,
         logging: false,
+        onclone: (clonedDoc) => {
+          // Copy all stylesheet and style links from parent document to iframe context to allow Safari font resolution
+          const head = clonedDoc.head || clonedDoc.getElementsByTagName('head')[0];
+          if (head) {
+            document.head.querySelectorAll('link[rel="stylesheet"], style').forEach((node) => {
+              head.appendChild(node.cloneNode(true));
+            });
+          }
+          // Reset letter spacing inside cloned element to bypass Safari overlapping characters bug
+          const clonedCard = clonedDoc.getElementById('pregnancy-preview-card');
+          if (clonedCard) {
+            const textElements = clonedCard.querySelectorAll('div, p, span');
+            textElements.forEach((el) => {
+              if (el instanceof HTMLElement) {
+                el.style.letterSpacing = 'normal';
+              }
+            });
+          }
+        },
       });
 
       // Clean up the temporary DOM nodes
@@ -500,13 +519,13 @@ export const PregnancyEditorModal: React.FC<PregnancyEditorModalProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-md overflow-y-auto"
+      className="fixed inset-0 z-[100] flex items-start sm:items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-md overflow-y-auto"
       onMouseMove={handleMouseMove}
       onTouchMove={handleTouchMove}
       onMouseUp={handleMouseUp}
       onTouchEnd={handleMouseUp}
     >
-      <div className="bg-white w-full max-w-5xl rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[96vh] lg:max-h-[90vh]">
+      <div className="bg-white w-full max-w-5xl rounded-3xl overflow-hidden shadow-2xl flex flex-col h-auto max-h-none sm:max-h-[96vh] lg:max-h-[90vh] my-auto">
         
         {/* Header */}
         <div className="p-4 sm:p-5 border-b border-gray-100 flex items-center justify-between bg-white shrink-0">
@@ -532,7 +551,7 @@ export const PregnancyEditorModal: React.FC<PregnancyEditorModalProps> = ({
         </div>
 
         {/* Content Body */}
-        <div className="flex-grow overflow-y-auto p-4 pt-3 pb-2 sm:px-6 sm:pt-4 sm:pb-2 bg-gray-50/50">
+        <div className="flex-grow overflow-y-auto sm:overflow-y-auto p-4 pt-3 pb-2 sm:px-6 sm:pt-4 sm:pb-2 bg-gray-50/50">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start max-w-6xl mx-auto">
             
             {/* LEFT COLUMN: Live Card Preview */}

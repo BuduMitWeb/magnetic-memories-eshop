@@ -54,8 +54,9 @@ const ProductDetailPage: React.FC = () => {
     // Dynamické načtení Google písem pro Polaroid a ozdobné editory
     useEffect(() => {
         const link = document.createElement('link');
-        link.href = 'https://fonts.googleapis.com/css2?family=Alex+Brush&family=Caveat:wght@400;700&family=Cinzel:wght@600&family=Dancing+Script:wght@700&family=Great+Vibes&family=Montserrat:wght@400;700&family=Pinyon+Script&family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=WindSong:wght@400;500&family=Whisper&family=Mrs+Saint+Delafield&family=Monsieur+La+Doulaise&display=swap';
+        link.href = 'https://fonts.googleapis.com/css2?family=Alex+Brush&family=Caveat:wght@400;700&family=Cinzel:wght@600&family=Dancing+Script:wght@700&family=Great+Vibes&family=Montserrat:wght@400;700&family=Pinyon+Script&family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=WindSong:wght@400;500&family=Whisper&family=Mrs+Saint+Delafield&family=Monsieur+La+Doulaise&display=swap&subset=latin,latin-ext';
         link.rel = 'stylesheet';
+        link.crossOrigin = 'anonymous';
         document.head.appendChild(link);
         return () => {
             document.head.removeChild(link);
@@ -530,6 +531,11 @@ const ProductDetailPage: React.FC = () => {
                                                             type="button" 
                                                             onClick={() => {
                                                                 setFinalPhotos([]);
+                                                                setCustomText(p => ({
+                                                                    ...p,
+                                                                    originalImageUrl: '',
+                                                                    designedImageUrl: ''
+                                                                }));
                                                             }}
                                                             className="text-brand-pink font-black hover:underline uppercase tracking-wide"
                                                         >
